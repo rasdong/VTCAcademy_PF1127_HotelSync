@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "BE78IcWpo1M=",
+  "dgSpecHash": "DsrrwUbYoKY=",
   "success": true,
-  "projectFilePath": "D:\\Hotel_Sync\\prj2.csproj",
+  "projectFilePath": "C:\\Users\\dong\\Desktop\\github_prj\\VTCAcademy_PF1127_HotelSync\\prj2.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\dong\\.nuget\\packages\\bouncycastle.cryptography\\2.5.1\\bouncycastle.cryptography.2.5.1.nupkg.sha512",
     "C:\\Users\\dong\\.nuget\\packages\\google.protobuf\\3.30.0\\google.protobuf.3.30.0.nupkg.sha512",
