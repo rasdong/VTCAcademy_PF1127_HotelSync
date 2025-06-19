@@ -13,7 +13,10 @@ namespace HotelManagementSystem
         public CustomerManagement(string role, int userId, string username)
         {
             if (string.IsNullOrEmpty(role) || string.IsNullOrEmpty(username) || userId <= 0)
-                throw new ArgumentException("Invalid role, user ID, or username provided.");
+            {
+                Console.WriteLine("Invalid role, user ID, or username provided.");
+                return;
+            }
 
             _currentRole = role;
             _currentUserId = userId;
@@ -36,25 +39,42 @@ namespace HotelManagementSystem
         public void AddCustomer(int customerId, string name, string idCard, string phone, string email, string nationality)
         {
             if (!_currentRole.In("Admin", "Receptionist"))
-                throw new UnauthorizedAccessException("Only Admin or Receptionist can add customers.");
+            {
+                Console.WriteLine("Only Admin or Receptionist can add customers.");
+                return;
+            }
             if (customerId <= 0 || !customerId.ToString().All(char.IsDigit))
-                throw new ArgumentException("Customer ID must be a positive integer consisting only of digits.");
+            {
+                Console.WriteLine("Customer ID must be a positive integer consisting only of digits.");
+                return;
+            }
             if (string.IsNullOrWhiteSpace(name) || !name.Any(char.IsLetter) || !name.Any(c => c == ' ' || char.IsLetter(c)))
-                throw new ArgumentException("Name must contain letters with diacritics and may include spaces.");
+            {
+                Console.WriteLine("Name must contain letters with diacritics and may include spaces.");
+                return;
+            }
             if (string.IsNullOrWhiteSpace(idCard) || idCard.Length != 12 || !idCard.All(char.IsDigit))
-                throw new ArgumentException("IDCard must be exactly 12 digits.");
+            {
+                Console.WriteLine("IDCard must be exactly 12 digits.");
+                return;
+            }
             if (string.IsNullOrWhiteSpace(phone) || phone.Length != 10 || !phone.All(char.IsDigit))
-                throw new ArgumentException("Phone number must be exactly 10 digits.");
+            {
+                Console.WriteLine("Phone number must be exactly 10 digits.");
+                return;
+            }
             if (string.IsNullOrWhiteSpace(nationality) || !nationality.Any(char.IsLetter) || !nationality.Any(c => c == ' ' || char.IsLetter(c)))
-                throw new ArgumentException("Nationality must contain letters with diacritics and may include spaces.");
+            {
+                Console.WriteLine("Nationality must contain letters with diacritics and may include spaces.");
+                return;
+            }
 
             using var connection = DataHelper.Instance.GetConnection();
             connection.Open();
-            using var transaction = connection.BeginTransaction();
 
             try
             {
-                using var command = new MySqlCommand("addCustomer", connection, transaction)
+                using var command = new MySqlCommand("addCustomer", connection)
                 {
                     CommandType = System.Data.CommandType.StoredProcedure
                 };
@@ -68,38 +88,53 @@ namespace HotelManagementSystem
                 command.Parameters.AddWithValue("@p_UpdatedByUsername", _currentUsername);
                 command.ExecuteNonQuery();
 
-                transaction.Commit();
                 LogAction($"Added customer ID {customerId} ({name})");
             }
             catch (MySqlException ex)
             {
-                transaction.Rollback();
-                throw new Exception($"Error adding customer: {ex.Message}");
+                Console.WriteLine($"Error adding customer: {ex.Message}");
             }
         }
 
         public void UpdateCustomer(int customerId, string name, string idCard, string phone, string email, string nationality)
         {
             if (!_currentRole.In("Admin", "Receptionist"))
-                throw new UnauthorizedAccessException("Only Admin or Receptionist can update customers.");
+            {
+                Console.WriteLine("Only Admin or Receptionist can update customers.");
+                return;
+            }
             if (customerId <= 0 || !customerId.ToString().All(char.IsDigit))
-                throw new ArgumentException("Customer ID must be a positive integer consisting only of digits.");
+            {
+                Console.WriteLine("Customer ID must be a positive integer consisting only of digits.");
+                return;
+            }
             if (string.IsNullOrWhiteSpace(name) || !name.Any(char.IsLetter) || !name.Any(c => c == ' ' || char.IsLetter(c)))
-                throw new ArgumentException("Name must contain letters with diacritics and may include spaces.");
+            {
+                Console.WriteLine("Name must contain letters with diacritics and may include spaces.");
+                return;
+            }
             if (string.IsNullOrWhiteSpace(idCard) || idCard.Length != 12 || !idCard.All(char.IsDigit))
-                throw new ArgumentException("IDCard must be exactly 12 digits.");
+            {
+                Console.WriteLine("IDCard must be exactly 12 digits.");
+                return;
+            }
             if (string.IsNullOrWhiteSpace(phone) || phone.Length != 10 || !phone.All(char.IsDigit))
-                throw new ArgumentException("Phone number must be exactly 10 digits.");
+            {
+                Console.WriteLine("Phone number must be exactly 10 digits.");
+                return;
+            }
             if (string.IsNullOrWhiteSpace(nationality) || !nationality.Any(char.IsLetter) || !nationality.Any(c => c == ' ' || char.IsLetter(c)))
-                throw new ArgumentException("Nationality must contain letters with diacritics and may include spaces.");
+            {
+                Console.WriteLine("Nationality must contain letters with diacritics and may include spaces.");
+                return;
+            }
 
             using var connection = DataHelper.Instance.GetConnection();
             connection.Open();
-            using var transaction = connection.BeginTransaction();
 
             try
             {
-                using var command = new MySqlCommand("updateCustomer", connection, transaction)
+                using var command = new MySqlCommand("updateCustomer", connection)
                 {
                     CommandType = System.Data.CommandType.StoredProcedure
                 };
@@ -114,32 +149,38 @@ namespace HotelManagementSystem
                 int rowsAffected = command.ExecuteNonQuery();
 
                 if (rowsAffected == 0)
-                    throw new Exception($"Customer ID {customerId} not found.");
+                {
+                    Console.WriteLine($"Customer ID {customerId} not found.");
+                    return;
+                }
 
-                transaction.Commit();
                 LogAction($"Updated customer ID {customerId} ({name})");
             }
             catch (MySqlException ex)
             {
-                transaction.Rollback();
-                throw new Exception($"Error updating customer: {ex.Message}");
+                Console.WriteLine($"Error updating customer: {ex.Message}");
             }
         }
 
         public void DeleteCustomer(int customerId)
         {
             if (!_currentRole.In("Admin", "Receptionist"))
-                throw new UnauthorizedAccessException("Only Admin or Receptionist can delete customers.");
+            {
+                Console.WriteLine("Only Admin or Receptionist can delete customers.");
+                return;
+            }
             if (customerId <= 0 || !customerId.ToString().All(char.IsDigit))
-                throw new ArgumentException("Customer ID must be a positive integer consisting only of digits.");
+            {
+                Console.WriteLine("Customer ID must be a positive integer consisting only of digits.");
+                return;
+            }
 
             using var connection = DataHelper.Instance.GetConnection();
             connection.Open();
-            using var transaction = connection.BeginTransaction();
 
             try
             {
-                using var command = new MySqlCommand("deleteCustomer", connection, transaction)
+                using var command = new MySqlCommand("deleteCustomer", connection)
                 {
                     CommandType = System.Data.CommandType.StoredProcedure
                 };
@@ -149,24 +190,31 @@ namespace HotelManagementSystem
                 int rowsAffected = command.ExecuteNonQuery();
 
                 if (rowsAffected == 0)
-                    throw new Exception($"Customer ID {customerId} not found.");
+                {
+                    Console.WriteLine($"Customer ID {customerId} not found.");
+                    return;
+                }
 
-                transaction.Commit();
                 LogAction($"Deleted customer ID {customerId}");
             }
             catch (MySqlException ex)
             {
-                transaction.Rollback();
-                throw new Exception($"Error deleting customer: {ex.Message}");
+                Console.WriteLine($"Error deleting customer: {ex.Message}");
             }
         }
 
         public List<Dictionary<string, string>> SearchCustomer(int customerId)
         {
             if (!_currentRole.In("Admin", "Receptionist"))
-                throw new UnauthorizedAccessException("Only Admin or Receptionist can search customers.");
+            {
+                Console.WriteLine("Only Admin or Receptionist can search customers.");
+                return new List<Dictionary<string, string>>();
+            }
             if (customerId <= 0 || !customerId.ToString().All(char.IsDigit))
-                throw new ArgumentException("Customer ID must be a positive integer consisting only of digits.");
+            {
+                Console.WriteLine("Customer ID must be a positive integer consisting only of digits.");
+                return new List<Dictionary<string, string>>();
+            }
 
             var results = new List<Dictionary<string, string>>();
             using var connection = DataHelper.Instance.GetConnection();
@@ -201,7 +249,7 @@ namespace HotelManagementSystem
             }
             catch (MySqlException ex)
             {
-                throw new Exception($"Error searching customer: {ex.Message}");
+                Console.WriteLine($"Error searching customer: {ex.Message}");
             }
 
             return results;
@@ -210,9 +258,15 @@ namespace HotelManagementSystem
         public List<Dictionary<string, string>> GetBookingHistory(int customerId)
         {
             if (!_currentRole.In("Admin", "Receptionist"))
-                throw new UnauthorizedAccessException("Only Admin or Receptionist can view booking history.");
+            {
+                Console.WriteLine("Only Admin or Receptionist can view booking history.");
+                return new List<Dictionary<string, string>>();
+            }
             if (customerId <= 0 || !customerId.ToString().All(char.IsDigit))
-                throw new ArgumentException("Customer ID must be a positive integer consisting only of digits.");
+            {
+                Console.WriteLine("Customer ID must be a positive integer consisting only of digits.");
+                return new List<Dictionary<string, string>>();
+            }
 
             var history = new List<Dictionary<string, string>>();
             using var connection = DataHelper.Instance.GetConnection();
@@ -226,7 +280,7 @@ namespace HotelManagementSystem
                 };
                 command.Parameters.AddWithValue("@p_CustomerID", customerId);
                 command.Parameters.AddWithValue("@p_UpdatedBy", _currentUserId);
-                command.Parameters.AddWithValue("@p_UpdatedByUsername", _currentUserId); // Sửa từ _currentUsername thành _currentUserId cho nhất quán
+                command.Parameters.AddWithValue("@p_UpdatedByUsername", _currentUsername);
 
                 using var reader = command.ExecuteReader();
                 while (reader.Read())
@@ -249,7 +303,7 @@ namespace HotelManagementSystem
             }
             catch (MySqlException ex)
             {
-                throw new Exception($"Error retrieving booking history: {ex.Message}");
+                Console.WriteLine($"Error retrieving booking history: {ex.Message}");
             }
 
             return history;
