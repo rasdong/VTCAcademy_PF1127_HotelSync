@@ -13,7 +13,10 @@ namespace HotelManagementSystem
         public StaffManagement(string role, int userId, string username)
         {
             if (string.IsNullOrEmpty(role) || string.IsNullOrEmpty(username) || userId <= 0)
-                throw new ArgumentException("Invalid role, user ID, or username provided.");
+            {
+                Console.WriteLine("Invalid role, user ID, or username provided.");
+                return;
+            }
             _currentRole = role;
             _currentUserId = userId;
             _currentUsername = username;
@@ -35,21 +38,32 @@ namespace HotelManagementSystem
         public void AddEmployee(int staffId, string name, string role)
         {
             if (!_currentRole.In("Admin"))
-                throw new UnauthorizedAccessException("Only Admin can add employees.");
+            {
+                Console.WriteLine("Only Admin can add employees.");
+                return;
+            }
             if (staffId <= 0 || !staffId.ToString().All(char.IsDigit))
-                throw new ArgumentException("Staff ID must be a positive integer consisting only of digits.");
+            {
+                Console.WriteLine("Staff ID must be a positive integer consisting only of digits.");
+                return;
+            }
             if (string.IsNullOrWhiteSpace(name) || !name.Any(char.IsLetter) || !name.Any(c => c == ' ' || char.IsLetter(c)))
-                throw new ArgumentException("Name must contain letters with diacritics and may include spaces.");
+            {
+                Console.WriteLine("Name must contain letters with diacritics and may include spaces.");
+                return;
+            }
             if (!new[] { "Receptionist", "Housekeeping", "Manager" }.Contains(role))
-                throw new ArgumentException("Role must be Receptionist, Housekeeping, or Manager.");
+            {
+                Console.WriteLine("Role must be Receptionist, Housekeeping, or Manager.");
+                return;
+            }
 
             using var connection = DataHelper.Instance.GetConnection();
             connection.Open();
-            using var transaction = connection.BeginTransaction();
 
             try
             {
-                using var command = new MySqlCommand("addEmployee", connection, transaction)
+                using var command = new MySqlCommand("addEmployee", connection)
                 {
                     CommandType = System.Data.CommandType.StoredProcedure
                 };
@@ -60,30 +74,33 @@ namespace HotelManagementSystem
                 command.Parameters.AddWithValue("@p_UpdatedByUsername", _currentUsername);
                 command.ExecuteNonQuery();
 
-                transaction.Commit();
                 LogAction($"Added staff ID {staffId} ({name}) with role {role}");
             }
             catch (MySqlException ex)
             {
-                transaction.Rollback();
-                throw new Exception($"Error adding staff: {ex.Message}");
+                Console.WriteLine($"Error adding staff: {ex.Message}");
             }
         }
 
         public void DeleteEmployee(int staffId)
         {
             if (!_currentRole.In("Admin"))
-                throw new UnauthorizedAccessException("Only Admin can delete employees.");
+            {
+                Console.WriteLine("Only Admin can delete employees.");
+                return;
+            }
             if (staffId <= 0 || !staffId.ToString().All(char.IsDigit))
-                throw new ArgumentException("Staff ID must be a positive integer consisting only of digits.");
+            {
+                Console.WriteLine("Staff ID must be a positive integer consisting only of digits.");
+                return;
+            }
 
             using var connection = DataHelper.Instance.GetConnection();
             connection.Open();
-            using var transaction = connection.BeginTransaction();
 
             try
             {
-                using var command = new MySqlCommand("deleteEmployee", connection, transaction)
+                using var command = new MySqlCommand("deleteEmployee", connection)
                 {
                     CommandType = System.Data.CommandType.StoredProcedure
                 };
@@ -93,34 +110,43 @@ namespace HotelManagementSystem
                 int rowsAffected = command.ExecuteNonQuery();
 
                 if (rowsAffected == 0)
-                    throw new Exception($"Staff ID {staffId} not found.");
+                {
+                    Console.WriteLine($"Staff ID {staffId} not found.");
+                    return;
+                }
 
-                transaction.Commit();
                 LogAction($"Deleted staff ID {staffId}");
             }
             catch (MySqlException ex)
             {
-                transaction.Rollback();
-                throw new Exception($"Error deleting staff: {ex.Message}");
+                Console.WriteLine($"Error deleting staff: {ex.Message}");
             }
         }
 
         public void AssignRole(int staffId, string newRole)
         {
             if (!_currentRole.In("Admin"))
-                throw new UnauthorizedAccessException("Only Admin can assign roles.");
+            {
+                Console.WriteLine("Only Admin can assign roles.");
+                return;
+            }
             if (staffId <= 0 || !staffId.ToString().All(char.IsDigit))
-                throw new ArgumentException("Staff ID must be a positive integer consisting only of digits.");
+            {
+                Console.WriteLine("Staff ID must be a positive integer consisting only of digits.");
+                return;
+            }
             if (!new[] { "Receptionist", "Housekeeping", "Manager" }.Contains(newRole))
-                throw new ArgumentException("Role must be Receptionist, Housekeeping, or Manager.");
+            {
+                Console.WriteLine("Role must be Receptionist, Housekeeping, or Manager.");
+                return;
+            }
 
             using var connection = DataHelper.Instance.GetConnection();
             connection.Open();
-            using var transaction = connection.BeginTransaction();
 
             try
             {
-                using var command = new MySqlCommand("assignEmployeeRole", connection, transaction)
+                using var command = new MySqlCommand("assignEmployeeRole", connection)
                 {
                     CommandType = System.Data.CommandType.StoredProcedure
                 };
@@ -131,24 +157,31 @@ namespace HotelManagementSystem
                 int rowsAffected = command.ExecuteNonQuery();
 
                 if (rowsAffected == 0)
-                    throw new Exception($"Staff ID {staffId} not found.");
+                {
+                    Console.WriteLine($"Staff ID {staffId} not found.");
+                    return;
+                }
 
-                transaction.Commit();
                 LogAction($"Assigned new role {newRole} to staff ID {staffId}");
             }
             catch (MySqlException ex)
             {
-                transaction.Rollback();
-                throw new Exception($"Error assigning role: {ex.Message}");
+                Console.WriteLine($"Error assigning role: {ex.Message}");
             }
         }
 
         public List<Dictionary<string, string>> GetEmployeesByRole(string role)
         {
             if (!_currentRole.In("Admin", "Manager"))
-                throw new UnauthorizedAccessException("Only Admin or Manager can view employee list.");
+            {
+                Console.WriteLine("Only Admin or Manager can view employee list.");
+                return new List<Dictionary<string, string>>();
+            }
             if (!new[] { "Receptionist", "Housekeeping", "Manager", "All" }.Contains(role))
-                throw new ArgumentException("Role must be Receptionist, Housekeeping, Manager, or All.");
+            {
+                Console.WriteLine("Role must be Receptionist, Housekeeping, Manager, or All.");
+                return new List<Dictionary<string, string>>();
+            }
 
             var results = new List<Dictionary<string, string>>();
             using var connection = DataHelper.Instance.GetConnection();
@@ -180,7 +213,7 @@ namespace HotelManagementSystem
             }
             catch (MySqlException ex)
             {
-                throw new Exception($"Error retrieving staff: {ex.Message}");
+                Console.WriteLine($"Error retrieving staff: {ex.Message}");
             }
 
             return results;
