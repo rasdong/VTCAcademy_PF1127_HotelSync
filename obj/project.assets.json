@@ -1548,25 +1548,25 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\dong\\.nuget\\packages\\": {}
+    "C:\\Users\\ADMIN\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync\\prj2.csproj",
+      "projectUniqueName": "C:\\Users\\ADMIN\\OneDrive\\Máy tính\\C#\\VTCAcademy_PF1127_HotelSync\\prj2.csproj",
       "projectName": "prj2",
-      "projectPath": "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync\\prj2.csproj",
-      "packagesPath": "C:\\Users\\dong\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync\\obj\\",
+      "projectPath": "C:\\Users\\ADMIN\\OneDrive\\Máy tính\\C#\\VTCAcademy_PF1127_HotelSync\\prj2.csproj",
+      "packagesPath": "C:\\Users\\ADMIN\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\ADMIN\\OneDrive\\Máy tính\\C#\\VTCAcademy_PF1127_HotelSync\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\dong\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\ADMIN\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net9.0"
       ],
       "sources": {
-        "https://www.nuget.org/api/v2": {}
+        "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net9.0": {
@@ -1611,7 +1611,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.200/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

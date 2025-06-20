@@ -54,9 +54,9 @@ namespace HotelManagementSystem
             roomManager = new RoomManagement();
             bookingManager = new BookingManagement();
             userManager = new HotelManagementSystem.UserManagement.UserManagement();
-            invoiceManager = new InvoiceManager("Server=localhost;Database=hotel_management;Uid=root;Pwd=123321;");
-            serviceManager = new ServiceManagement("Server=localhost;Database=hotel_management;Uid=root;Pwd=123321;");
-            reportingManager = new ReportingAndAnalytics("Server=localhost;Database=hotel_management;Uid=root;Pwd=123321;");
+            invoiceManager = new InvoiceManager("Server=localhost;Database=hotel_management;Uid=root;Pwd=26122003;");
+            serviceManager = new ServiceManagement("Server=localhost;Database=hotel_management;Uid=root;Pwd=26122003;");
+            reportingManager = new ReportingAndAnalytics("Server=localhost;Database=hotel_management;Uid=root;Pwd=26122003;");
         }
 
         public void DrawHeader(string title)
@@ -1913,7 +1913,20 @@ namespace HotelManagementSystem
             {
                 Console.Clear();
                 DrawHeader("Quản Lý Dịch Vụ");
-                SetupBox(100, 22);
+                int optionCount = 7;
+                SetupBox(80, 8 + optionCount * 2 + 4);
+
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.SetCursorPosition(x + 2, y + 2);
+                Console.Write($"Chào mừng, {currentUsername}! (Vai trò: {currentRole ?? "Chưa đăng nhập"})");
+                Console.SetCursorPosition(x + 2, y + 3);
+                Console.Write(new string('─', width - 4));
+
+                Console.SetCursorPosition(x + 2, y + 4);
+                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                Console.SetCursorPosition(x + 2, y + 5);
+                Console.Write(new string('─', width - 4));
+
                 string[] options = new[]
                 {
                     "Xem danh sách dịch vụ",
@@ -1926,15 +1939,22 @@ namespace HotelManagementSystem
                 };
                 for (int i = 0; i < options.Length; i++)
                 {
-                    Console.SetCursorPosition(x + 2, y + 3 + i * 2);
+                    int optionY = y + 6 + i * 2;
+                    Console.SetCursorPosition(x + 2, optionY);
                     Console.ForegroundColor = ConsoleColor.Cyan;
                     Console.Write($"{i + 1}. ");
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.Write(options[i]);
+                    if (i < options.Length - 1)
+                    {
+                        Console.SetCursorPosition(x + 2, optionY + 1);
+                        Console.Write(new string('─', width - 4));
+                    }
                 }
+
                 Console.SetCursorPosition(x + 2, y + height - 4);
                 Console.Write("Lựa chọn của bạn: ");
-                string? choice = ReadInputWithEscape(x + 22, y + height - 4);
+                string? choice = ReadInputWithEscape(x + 20, y + height - 4);
                 if (!int.TryParse(choice, out int opt) || opt < 1 || opt > options.Length)
                 {
                     ShowErrorMessage("Lựa chọn không hợp lệ!");

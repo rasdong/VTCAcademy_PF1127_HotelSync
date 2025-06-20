@@ -589,7 +589,7 @@ END //
 -- Stored procedure để xem danh sách phòng
 CREATE PROCEDURE viewAllRooms()
 BEGIN
-    SELECT r.RoomID, r.RoomNumber, r.RoomType, r.Price, r.Status, r.Amenities
+    SELECT r.RoomID, r.RoomNumber, r.RoomType, r.Price, r.Status, r.Amenities, r.CreatedAt, r.UpdatedAt, r.UpdatedBy, r.UpdatedByUsername
     FROM Rooms r
     ORDER BY r.RoomNumber;
 END //
