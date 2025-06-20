@@ -1553,11 +1553,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\dong\\Desktop\\github_prj\\VTCAcademy_PF1127_HotelSync\\prj2.csproj",
+      "projectUniqueName": "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync\\prj2.csproj",
       "projectName": "prj2",
-      "projectPath": "C:\\Users\\dong\\Desktop\\github_prj\\VTCAcademy_PF1127_HotelSync\\prj2.csproj",
+      "projectPath": "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync\\prj2.csproj",
       "packagesPath": "C:\\Users\\dong\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\dong\\Desktop\\github_prj\\VTCAcademy_PF1127_HotelSync\\obj\\",
+      "outputPath": "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\dong\\AppData\\Roaming\\NuGet\\NuGet.Config"
