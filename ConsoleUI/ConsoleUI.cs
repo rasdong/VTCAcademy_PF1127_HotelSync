@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using System.Collections.Generic;
+using HotelManagementSystem.InvoiceManagement;
+using HotelManagementSystem;
 
 namespace HotelManagementSystem
 {
@@ -15,8 +17,14 @@ namespace HotelManagementSystem
         private string? currentUsername;
         private string? currentRole;
         private int currentUserId;
-        private CustomerManagement? customerManager;
-        private StaffManagement? staffManager;
+        private CustomerBL? customerManager;
+        private StaffBL? staffManager;
+        private RoomManagement? roomManager;
+        private BookingManagement? bookingManager;
+        private HotelManagementSystem.UserManagement.UserManagement? userManager;
+        private InvoiceManager invoiceManager;
+        private ServiceManagement? serviceManager;
+        private ReportingAndAnalytics? reportingManager;
 
         public ConsoleUI()
         {
@@ -43,6 +51,12 @@ namespace HotelManagementSystem
                     Environment.Exit(0);
                 }
             }
+            roomManager = new RoomManagement();
+            bookingManager = new BookingManagement();
+            userManager = new HotelManagementSystem.UserManagement.UserManagement();
+            invoiceManager = new InvoiceManager("Server=localhost;Database=hotel_management;Uid=root;Pwd=26122003;");
+            serviceManager = new ServiceManagement("Server=localhost;Database=hotel_management;Uid=root;Pwd=26122003;");
+            reportingManager = new ReportingAndAnalytics("Server=localhost;Database=hotel_management;Uid=root;Pwd=26122003;");
         }
 
         public void DrawHeader(string title)
@@ -433,6 +447,8 @@ namespace HotelManagementSystem
                     Console.Clear();
                     break;
                 case "Quản lý khách hàng":
+                    if (customerManager == null && currentRole != null && currentUsername != null && currentUserId > 0)
+                        customerManager = new CustomerBL(currentRole, currentUserId, currentUsername);
                     ShowCustomerManagement();
                     break;
                 case "Quản lý nhân viên":
@@ -445,10 +461,16 @@ namespace HotelManagementSystem
                     ShowReportScreen();
                     break;
                 case "Quản lý phòng":
+                    ShowRoomManagement();
+                    break;
                 case "Quản lý đặt phòng":
+                    ShowBookingManagement();
+                    break;
                 case "Quản lý dịch vụ":
+                    ShowServiceManagement();
+                    break;
                 case "Quản lý người dùng":
-                    ShowPlaceholder(option);
+                    ShowUserManagement();
                     break;
                 default:
                     ShowInfoMessage($"Đã chọn: {option}. (Chưa được triển khai - Nhấn phím bất kỳ để quay lại...)");
@@ -472,30 +494,46 @@ namespace HotelManagementSystem
             {
                 Console.Clear();
                 DrawHeader("Quản Lý Khách Hàng");
-                SetupBox(80, 18);
+                int optionCount = 6;
+                SetupBox(80, 8 + optionCount * 2 + 4);
 
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.SetCursorPosition(x + 2, y + 2);
-                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                Console.Write($"Chào mừng, {currentUsername}! (Vai trò: {currentRole ?? "Chưa đăng nhập"})");
                 Console.SetCursorPosition(x + 2, y + 3);
                 Console.Write(new string('─', width - 4));
 
                 Console.SetCursorPosition(x + 2, y + 4);
-                Console.Write("1. Thêm khách hàng");
+                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
                 Console.SetCursorPosition(x + 2, y + 5);
-                Console.Write("2. Sửa thông tin khách hàng");
-                Console.SetCursorPosition(x + 2, y + 6);
-                Console.Write("3. Xóa khách hàng");
-                Console.SetCursorPosition(x + 2, y + 7);
-                Console.Write("4. Tìm kiếm khách hàng");
-                Console.SetCursorPosition(x + 2, y + 8);
-                Console.Write("5. Xem lịch sử đặt phòng");
-                Console.SetCursorPosition(x + 2, y + 9);
-                Console.Write("0. Quay lại");
+                Console.Write(new string('─', width - 4));
 
-                Console.SetCursorPosition(x + 2, y + 11);
+                string[] options = new[] {
+                    "Thêm khách hàng",
+                    "Sửa thông tin khách hàng",
+                    "Xóa khách hàng",
+                    "Tìm kiếm khách hàng",
+                    "Xem lịch sử đặt phòng",
+                    "Quay lại"
+                };
+                for (int i = 0; i < options.Length; i++)
+                {
+                    int optionY = y + 6 + i * 2;
+                    Console.SetCursorPosition(x + 2, optionY);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write($"{i + 1}. ");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write(options[i]);
+                    if (i < options.Length - 1)
+                    {
+                        Console.SetCursorPosition(x + 2, optionY + 1);
+                        Console.Write(new string('─', width - 4));
+                    }
+                }
+
+                Console.SetCursorPosition(x + 2, y + height - 4);
                 Console.Write("Lựa chọn của bạn: ");
-                string? choice = ReadInputWithEscape(x + 20, y + 11);
+                string? choice = ReadInputWithEscape(x + 20, y + height - 4);
 
                 switch (choice)
                 {
@@ -591,6 +629,11 @@ namespace HotelManagementSystem
                         idInput = ReadInputWithEscape(x + 25, y + 2, "Mã khách hàng cần xóa: ", s => !string.IsNullOrWhiteSpace(s) && int.TryParse(s, out int id) && id > 0 && s.All(char.IsDigit), "Mã khách hàng phải là số nguyên dương gồm các chữ số! Vui lòng nhập lại.");
                         if (idInput == null) break;
                         int idDel = int.Parse(idInput);
+
+                        Console.SetCursorPosition(x + 2, y + 3);
+                        var confirm = ReadInputWithEscape(x + 20, y + 3, "Xác nhận xóa (Y/N): ", s => s.ToUpper() == "Y" || s.ToUpper() == "N", "Vui lòng nhập Y hoặc N!");
+                        if (confirm == null || confirm.ToUpper() != "Y") break;
+
                         try
                         {
                             customerManager.DeleteCustomer(idDel);
@@ -675,12 +718,13 @@ namespace HotelManagementSystem
 
                             Console.SetCursorPosition(x + 2, y + 10 + rowIndex * 2);
                             Console.WriteLine("Nhấn phím bất kỳ để tiếp tục...");
+                            Console.ReadKey();
                         }
                         catch (Exception ex)
                         {
                             ShowErrorMessage(ex.Message);
+                            Console.ReadKey();
                         }
-                        Console.ReadKey();
                         break;
 
                     case "5":
@@ -757,15 +801,16 @@ namespace HotelManagementSystem
 
                             Console.SetCursorPosition(x + 2, y + 10 + rowIndex * 2);
                             Console.WriteLine("Nhấn phím bất kỳ để tiếp tục...");
+                            Console.ReadKey();
                         }
                         catch (Exception ex)
                         {
                             ShowErrorMessage(ex.Message);
+                            Console.ReadKey();
                         }
-                        Console.ReadKey();
                         break;
 
-                    case "0":
+                    case "6":
                         Console.Clear();
                         return;
 
@@ -781,35 +826,52 @@ namespace HotelManagementSystem
         {
             if (staffManager == null)
             {
-                staffManager = new StaffManagement(currentRole, currentUserId, currentUsername);
+                staffManager = new StaffBL(currentRole ?? string.Empty, currentUserId, currentUsername ?? string.Empty);
             }
 
             while (true)
             {
                 Console.Clear();
                 DrawHeader("Quản Lý Nhân Viên");
-                SetupBox(80, 18);
+                int optionCount = 5;
+                SetupBox(80, 8 + optionCount * 2 + 4);
 
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.SetCursorPosition(x + 2, y + 2);
-                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                Console.Write($"Chào mừng, {currentUsername}! (Vai trò: {currentRole ?? "Chưa đăng nhập"})");
                 Console.SetCursorPosition(x + 2, y + 3);
                 Console.Write(new string('─', width - 4));
 
                 Console.SetCursorPosition(x + 2, y + 4);
-                Console.Write("1. Thêm nhân viên");
+                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
                 Console.SetCursorPosition(x + 2, y + 5);
-                Console.Write("2. Xóa nhân viên");
-                Console.SetCursorPosition(x + 2, y + 6);
-                Console.Write("3. Gán vai trò mới");
-                Console.SetCursorPosition(x + 2, y + 7);
-                Console.Write("4. Xem danh sách nhân viên");
-                Console.SetCursorPosition(x + 2, y + 8);
-                Console.Write("0. Quay lại");
+                Console.Write(new string('─', width - 4));
 
-                Console.SetCursorPosition(x + 2, y + 10);
+                string[] options = new[] {
+                    "Thêm nhân viên",
+                    "Xóa nhân viên",
+                    "Gán vai trò mới",
+                    "Xem danh sách nhân viên",
+                    "Quay lại"
+                };
+                for (int i = 0; i < options.Length; i++)
+                {
+                    int optionY = y + 6 + i * 2;
+                    Console.SetCursorPosition(x + 2, optionY);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write($"{i + 1}. ");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write(options[i]);
+                    if (i < options.Length - 1)
+                    {
+                        Console.SetCursorPosition(x + 2, optionY + 1);
+                        Console.Write(new string('─', width - 4));
+                    }
+                }
+
+                Console.SetCursorPosition(x + 2, y + height - 4);
                 Console.Write("Lựa chọn của bạn: ");
-                string? choice = ReadInputWithEscape(x + 20, y + 10);
+                string? choice = ReadInputWithEscape(x + 20, y + height - 4);
 
                 switch (choice)
                 {
@@ -835,7 +897,7 @@ namespace HotelManagementSystem
 
                         try
                         {
-                            staffManager.AddEmployee(employeeId, name, role);
+                            staffManager.AddStaff(employeeId, name, role);
                             ShowSuccessMessage("Đã thêm nhân viên thành công!");
                         }
                         catch (Exception ex)
@@ -855,7 +917,7 @@ namespace HotelManagementSystem
                         int idDel = int.Parse(idInput);
                         try
                         {
-                            staffManager.DeleteEmployee(idDel);
+                            staffManager.DeleteStaff(idDel);
                             ShowSuccessMessage("Đã xóa nhân viên thành công!");
                         }
                         catch (Exception ex)
@@ -902,7 +964,7 @@ namespace HotelManagementSystem
 
                         try
                         {
-                            var results = staffManager.GetEmployeesByRole(roleInput);
+                            var results = staffManager.GetStaffByRole(roleInput);
                             Console.SetCursorPosition(x + 2, y + 4);
                             Console.WriteLine("Danh sách nhân viên:");
                             Console.SetCursorPosition(x + 2, y + 5);
@@ -969,7 +1031,7 @@ namespace HotelManagementSystem
                         Console.ReadKey();
                         break;
 
-                    case "0":
+                    case "5":
                         Console.Clear();
                         return;
 
@@ -981,11 +1043,150 @@ namespace HotelManagementSystem
             }
         }
 
+        private void ShowUserManagement()
+        {
+            if (currentRole != null && currentRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                while (true)
+                {
+                    Console.Clear();
+                    DrawHeader("Quản Lý Người Dùng");
+                    int optionCount = 4;
+                    SetupBox(80, 8 + optionCount * 2 + 4);
+
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.SetCursorPosition(x + 2, y + 2);
+                    Console.Write($"Chào mừng, {currentUsername}! (Vai trò: {currentRole})");
+                    Console.SetCursorPosition(x + 2, y + 3);
+                    Console.Write(new string('─', width - 4));
+
+                    Console.SetCursorPosition(x + 2, y + 4);
+                    Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                    Console.SetCursorPosition(x + 2, y + 5);
+                    Console.Write(new string('─', width - 4));
+
+                    string[] options = new[] {
+                        "Xem danh sách user",
+                        "Phân quyền user",
+                        "Xóa user",
+                        "Quay lại"
+                    };
+                    for (int i = 0; i < options.Length; i++)
+                    {
+                        int optionY = y + 6 + i * 2;
+                        Console.SetCursorPosition(x + 2, optionY);
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.Write($"{i + 1}. ");
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.Write(options[i]);
+                        if (i < options.Length - 1)
+                        {
+                            Console.SetCursorPosition(x + 2, optionY + 1);
+                            Console.Write(new string('─', width - 4));
+                        }
+                    }
+
+                    Console.SetCursorPosition(x + 2, y + height - 4);
+                    Console.Write("Lựa chọn của bạn: ");
+                    string? choice = ReadInputWithEscape(x + 20, y + height - 4);
+
+                    switch (choice)
+                    {
+                        case "1":
+                            Console.Clear();
+                            DrawHeader("Danh Sách User");
+                            SetupBox(100, 30);
+                            var users = userManager?.GetAllUsers();
+                            if (users != null && users.Count > 0)
+                            {
+                                string[] headers = { "UserID", "Username", "Role", "CreatedAt", "UpdatedAt" };
+                                int[] columnWidths = { 8, 20, 15, 20, 20 };
+                                Console.SetCursorPosition(x + 2, y + 2);
+                                for (int i = 0; i < headers.Length; i++)
+                                    Console.Write(headers[i].PadRight(columnWidths[i]));
+                                Console.WriteLine();
+                                Console.SetCursorPosition(x + 2, y + 3);
+                                Console.WriteLine(new string('─', width - 4));
+                                int rowIndex = 0;
+                                foreach (var u in users)
+                                {
+                                    Console.SetCursorPosition(x + 2, y + 4 + rowIndex);
+                                    Console.Write(u.UserID.ToString().PadRight(columnWidths[0]));
+                                    Console.Write(u.Username.PadRight(columnWidths[1]));
+                                    Console.Write(u.Role.PadRight(columnWidths[2]));
+                                    Console.Write(u.CreatedAt.ToString("yyyy-MM-dd HH:mm").PadRight(columnWidths[3]));
+                                    Console.Write(u.UpdatedAt.ToString("yyyy-MM-dd HH:mm").PadRight(columnWidths[4]));
+                                    Console.WriteLine();
+                                    rowIndex++;
+                                }
+                            }
+                            else
+                            {
+                                Console.SetCursorPosition(x + 2, y + 4);
+                                Console.WriteLine("Không có user nào!");
+                            }
+                            Console.SetCursorPosition(x + 2, y + height - 2);
+                            Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
+                            Console.ReadKey();
+                            break;
+                        case "2":
+                            Console.Clear();
+                            DrawHeader("Phân Quyền User");
+                            string? userIdStr = ReadInputWithEscape(x + 20, y + 2, "UserID: ", s => int.TryParse(s, out var v) && v > 0, "ID phải là số dương!");
+                            if (userIdStr == null) break;
+                            int userId = int.Parse(userIdStr);
+                            Console.SetCursorPosition(x + 2, y + 3);
+                            string? newRole = ReadInputWithEscape(x + 20, y + 3, "Vai trò mới (Admin/Receptionist/Housekeeping/Manager): ", s => new[]{"Admin","Receptionist","Housekeeping","Manager"}.Contains(s), "Sai vai trò!");
+                            if (newRole == null) break;
+                            var user = userManager?.GetUserById(userId);
+                            if (user == null)
+                            {
+                                ShowErrorMessage($"Không tìm thấy user với ID {userId}!");
+                                Console.ReadKey();
+                                break;
+                            }
+                            user.Role = newRole;
+                            user.UpdatedAt = DateTime.Now;
+                            userManager?.UpdateUser(user);
+                            ShowSuccessMessage($"Đã phân quyền user {user.Username} thành {newRole}!");
+                            Console.ReadKey();
+                            break;
+                        case "3":
+                            Console.Clear();
+                            DrawHeader("Xóa User");
+                            SetupBox(60, 10);
+                            Console.SetCursorPosition(x + 2, y + 2);
+                            string? delUserIdStr = ReadInputWithEscape(x + 20, y + 2, "UserID: ", s => int.TryParse(s, out var v) && v > 0, "ID phải là số dương!");
+                            if (delUserIdStr == null) break;
+                            int delUserId = int.Parse(delUserIdStr);
+                            if (userManager?.RemoveUser(delUserId) == true)
+                                ShowSuccessMessage("Xóa user thành công!");
+                            else
+                                ShowErrorMessage("Không tìm thấy user!");
+                            Console.ReadKey();
+                            break;
+                        case "4":
+                            Console.Clear();
+                            return;
+                        default:
+                            ShowErrorMessage("Lựa chọn không hợp lệ!");
+                            Console.ReadKey();
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                ShowErrorMessage("Chỉ Admin mới có quyền quản lý người dùng!");
+                Console.ReadKey();
+            }
+        }
+
         private void ShowInvoiceManagement()
         {
             Console.Clear();
             DrawHeader("Hệ Thống Quản Lý Khách Sạn");
-            SetupBox(100, 22);
+            SetupBox(120, 28);
 
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(x + 2, y + 2);
@@ -995,249 +1196,112 @@ namespace HotelManagementSystem
 
             Console.SetCursorPosition(x + 2, y + 4);
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("--- DANH SÁCH HÓA ĐƠN ---");
+            Console.Write("--- DANH SÁCH HÓA ĐƠN TỔNG ---");
             Console.ResetColor();
             Console.SetCursorPosition(x + 2, y + 5);
             Console.Write(new string('─', width - 4));
 
-            string[,] orders;
-            using (var connection = DataHelper.Instance.GetConnection())
-            {
-                connection.Open();
-                string query = @"
-                    SELECT su.UsageID, c.Name, c.Phone, su.Date, su.TotalPrice, su.PaymentStatus
-                    FROM ServiceUsage su
-                    JOIN Customers c ON su.CustomerID = c.CustomerID
-                    ORDER BY su.UsageID";
-                using (var command = new MySqlCommand(query, connection))
-                {
-                    using var reader = command.ExecuteReader();
-                    var tempOrders = new List<string[]>();
-                    while (reader.Read())
-                    {
-                        tempOrders.Add(new[]
-                        {
-                            reader.GetInt32("UsageID").ToString(),
-                            reader.GetString("Name"),
-                            reader.GetString("Phone"),
-                            reader.GetDateTime("Date").ToString("yyyy-MM-dd HH:mm"),
-                            reader.GetDecimal("TotalPrice").ToString("N0"),
-                            reader.GetString("PaymentStatus") == "Paid" ? "ĐÃ THANH TOÁN" : "CHƯA THANH TOÁN"
-                        });
-                    }
-                    orders = new string[tempOrders.Count, 6];
-                    for (int i = 0; i < tempOrders.Count; i++)
-                    {
-                        for (int j = 0; j < 6; j++)
-                        {
-                            orders[i, j] = tempOrders[i][j];
-                        }
-                    }
-                }
-            }
-
-            string[] headers = new[] { "Mã HĐ", "Tên Khách Hàng", "Điện Thoại", "Ngày", "Tổng (VND)", "Trạng Thái" };
-            int[] columnWidths = new int[headers.Length];
-            for (int col = 0; col < headers.Length; col++)
-            {
-                columnWidths[col] = headers[col].Length;
-                for (int row = 0; row < orders.GetLength(0); row++)
-                {
-                    int length = orders[row, col].Length;
-                    if (length > columnWidths[col])
-                        columnWidths[col] = Math.Min(length, width / headers.Length - 2);
-                }
-                columnWidths[col] += 2;
-            }
+            var invoices = invoiceManager?.GetAllInvoices() ?? new List<Invoice>();
+            string[] headers = { "Mã HĐ", "Mã Đặt Phòng", "Mã KH", "Tổng tiền (VND)", "Ngày lập", "Trạng thái", "Người cập nhật" };
+            int[] columnWidths = { 8, 12, 8, 18, 20, 14, 18 };
 
             Console.SetCursorPosition(x + 2, y + 6);
             Console.ForegroundColor = ConsoleColor.Magenta;
             for (int col = 0; col < headers.Length; col++)
-            {
                 Console.Write(headers[col].PadRight(columnWidths[col]));
-            }
             Console.WriteLine();
-
             Console.SetCursorPosition(x + 2, y + 7);
             Console.WriteLine(new string('─', width - 4));
             Console.ResetColor();
 
-            for (int i = 0; i < orders.GetLength(0); i++)
+            int rowBase = 8;
+            for (int i = 0; i < invoices.Count; i++)
             {
-                Console.SetCursorPosition(x + 2, y + 8 + i * 2);
-                for (int col = 0; col < orders.GetLength(1); col++)
-                {
-                    Console.Write(orders[i, col].PadRight(columnWidths[col]));
-                }
+                var inv = invoices[i];
+                Console.SetCursorPosition(x + 2, y + rowBase + i);
+                Console.Write(inv.InvoiceID.ToString().PadRight(columnWidths[0]));
+                Console.Write(inv.BookingID.ToString().PadRight(columnWidths[1]));
+                Console.Write(inv.CustomerID.ToString().PadRight(columnWidths[2]));
+                Console.Write(inv.TotalAmount.ToString("N0").PadRight(columnWidths[3]));
+                Console.Write(inv.IssueDate.ToString("yyyy-MM-dd HH:mm").PadRight(columnWidths[4]));
+                Console.Write((inv.PaymentStatus == "Paid" ? "ĐÃ THANH TOÁN" : "CHƯA THANH TOÁN").PadRight(columnWidths[5]));
+                Console.Write((inv.UpdatedByUsername ?? "").PadRight(columnWidths[6]));
                 Console.WriteLine();
-                if (i < orders.GetLength(0) - 1)
-                {
-                    Console.SetCursorPosition(x + 2, y + 9 + i * 2);
-                    Console.WriteLine(new string('─', width - 4));
-                }
             }
 
-            Console.SetCursorPosition(x + 2, y + 12 + (orders.GetLength(0) - 1) * 2);
+            Console.SetCursorPosition(x + 2, y + rowBase + invoices.Count + 1);
             Console.WriteLine("+ Nhấn ESC để quay lại");
-            Console.SetCursorPosition(x + 2, y + 13 + (orders.GetLength(0) - 1) * 2);
+            Console.SetCursorPosition(x + 2, y + rowBase + invoices.Count + 2);
             Console.Write("+ Nhập mã hóa đơn để thanh toán: ");
 
-            string orderId = ReadInputWithEscape(x + 34, y + 13 + (orders.GetLength(0) - 1) * 2) ?? string.Empty;
-            if (string.IsNullOrEmpty(orderId))
+            string invoiceIdStr = ReadInputWithEscape(x + 34, y + rowBase + invoices.Count + 2) ?? string.Empty;
+            if (string.IsNullOrEmpty(invoiceIdStr))
             {
                 Console.Clear();
                 return;
             }
-
-            if (!int.TryParse(orderId, out int id))
+            if (!int.TryParse(invoiceIdStr, out int invoiceId))
             {
-                ShowErrorMessage($"Mã hóa đơn {orderId} không hợp lệ!");
+                ShowErrorMessage($"Mã hóa đơn {invoiceIdStr} không hợp lệ!");
                 Console.ReadKey();
                 Console.Clear();
                 return;
             }
-
-            bool isValidOrder = false;
-            bool isUnpaid = false;
-            using (var connection = DataHelper.Instance.GetConnection())
+            var invoice = invoiceManager?.GetInvoiceById(invoiceId);
+            if (invoice == null)
             {
-                connection.Open();
-                string checkQuery = "SELECT PaymentStatus FROM ServiceUsage WHERE UsageID = @usageId";
-                using (var checkCommand = new MySqlCommand(checkQuery, connection))
-                {
-                    checkCommand.Parameters.AddWithValue("@usageId", id);
-                    using var reader = checkCommand.ExecuteReader();
-                    if (reader.Read())
-                    {
-                        isValidOrder = true;
-                        isUnpaid = reader.GetString("PaymentStatus") == "Unpaid";
-                    }
-                }
-
-                if (isValidOrder && isUnpaid)
-                {
-                    string updateQuery = "UPDATE ServiceUsage SET PaymentStatus = 'Paid' WHERE UsageID = @usageId";
-                    using (var updateCommand = new MySqlCommand(updateQuery, connection))
-                    {
-                        updateCommand.Parameters.AddWithValue("@usageId", id);
-                        updateCommand.ExecuteNonQuery();
-                    }
-                    ShowSuccessMessage($"Thanh toán hóa đơn {orderId} thành công!");
-                    Thread.Sleep(1000);
-                    Console.Clear();
-                }
-                else
-                {
-                    ShowErrorMessage($"Mã hóa đơn {orderId} không hợp lệ hoặc đã thanh toán!");
-                    Console.ReadKey();
-                    Console.Clear();
-                }
+                ShowErrorMessage($"Không tìm thấy hóa đơn với mã {invoiceId}!");
+                Console.ReadKey();
+                Console.Clear();
+                return;
+            }
+            if (invoice.PaymentStatus == "Paid")
+            {
+                ShowErrorMessage($"Hóa đơn {invoiceId} đã thanh toán!");
+                Console.ReadKey();
+                Console.Clear();
+                return;
+            }
+            // Thực hiện thanh toán hóa đơn tổng
+            bool result = invoiceManager != null && invoiceManager.UpdatePaymentStatus(invoiceId, "Paid", currentUserId, currentUsername ?? "");
+            if (result)
+            {
+                ShowSuccessMessage($"Thanh toán hóa đơn {invoiceId} thành công!");
+                Thread.Sleep(1000);
+                Console.Clear();
+            }
+            else
+            {
+                ShowErrorMessage($"Thanh toán hóa đơn {invoiceId} thất bại!");
+                Console.ReadKey();
+                Console.Clear();
             }
         }
 
+        // Ví dụ sử dụng trong ShowReportScreen (bạn có thể mở rộng thêm):
         private void ShowReportScreen()
         {
             Console.Clear();
-            DrawHeader("Hệ Thống Quản Lý Khách Sạn");
-            SetupBox(80, 20);
-
-            Console.ForegroundColor = ConsoleColor.White;
+            DrawHeader("Báo Cáo & Thống Kê");
+            SetupBox(100, 20);
+            DateTime today = DateTime.Today;
+            DateTime startOfMonth = new DateTime(today.Year, today.Month, 1);
+            DateTime endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
+            decimal totalRevenue = reportingManager?.GetTotalRevenue(startOfMonth, endOfMonth) ?? 0;
+            double occupancy = reportingManager?.GetRoomOccupancyRate(startOfMonth, endOfMonth) ?? 0;
+            var topService = reportingManager?.GetTopService(startOfMonth, endOfMonth);
             Console.SetCursorPosition(x + 2, y + 2);
-            Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+            Console.WriteLine($"Doanh thu tháng này: {totalRevenue:N0} VND");
             Console.SetCursorPosition(x + 2, y + 3);
-            Console.Write(new string('─', width - 4));
-
-            Console.SetCursorPosition(x + 2, y + 4);
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.Write("--- BÁO CÁO TỔNG QUAN ---");
-            Console.ResetColor();
-            Console.SetCursorPosition(x + 2, y + 5);
-            Console.Write(new string('─', width - 4));
-
-            string[,] reportData;
-            using (var connection = DataHelper.Instance.GetConnection())
+            Console.WriteLine($"Tỷ lệ lấp đầy phòng: {occupancy:F2}%");
+            if (topService != null && !string.IsNullOrEmpty(topService.Value.ServiceName))
             {
-                connection.Open();
-                string query = @"
-                    SELECT 
-                        (SELECT COUNT(*) FROM Bookings) AS TotalBookings,
-                        (SELECT COUNT(*) FROM ServiceUsage WHERE PaymentStatus = 'Paid') AS PaidInvoices,
-                        (SELECT COUNT(*) FROM ServiceUsage WHERE PaymentStatus = 'Unpaid') AS UnpaidInvoices,
-                        (SELECT COALESCE(SUM(TotalPrice), 0) FROM ServiceUsage WHERE PaymentStatus = 'Paid') AS Revenue,
-                        (SELECT COUNT(*) FROM Rooms WHERE Status = 'Available') AS AvailableRooms";
-                using (var command = new MySqlCommand(query, connection))
-                {
-                    using var reader = command.ExecuteReader();
-                    if (reader.Read())
-                    {
-                        reportData = new string[,]
-                        {
-                            { "Tổng đặt phòng", reader.GetInt32("TotalBookings").ToString() },
-                            { "Đã thanh toán", reader.GetInt32("PaidInvoices").ToString() },
-                            { "Chưa thanh toán", reader.GetInt32("UnpaidInvoices").ToString() },
-                            { "Doanh thu (VND)", reader.GetDecimal("Revenue").ToString("N0") },
-                            { "Phòng trống", reader.GetInt32("AvailableRooms").ToString() }
-                        };
-                    }
-                    else
-                    {
-                        reportData = new string[,]
-                        {
-                            { "Tổng đặt phòng", "0" },
-                            { "Đã thanh toán", "0" },
-                            { "Chưa thanh toán", "0" },
-                            { "Doanh thu (VND)", "0" },
-                            { "Phòng trống", "0" }
-                        };
-                    }
-                }
+                Console.SetCursorPosition(x + 2, y + 4);
+                Console.WriteLine($"Dịch vụ doanh thu cao nhất: {topService.Value.ServiceName} ({topService.Value.TotalRevenue:N0} VND, {topService.Value.TimesUsed} lượt)");
             }
-
-            string[] headers = new[] { "Danh mục", "Giá trị" };
-            int[] columnWidths = new int[headers.Length];
-            for (int col = 0; col < headers.Length; col++)
-            {
-                columnWidths[col] = headers[col].Length;
-                for (int row = 0; row < reportData.GetLength(0); row++)
-                {
-                    int length = reportData[row, col].Length;
-                    if (length > columnWidths[col])
-                        columnWidths[col] = Math.Min(length, width / headers.Length - 2);
-                }
-                columnWidths[col] += 2;
-            }
-
-            Console.SetCursorPosition(x + 2, y + 6);
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            for (int col = 0; col < headers.Length; col++)
-            {
-                Console.Write(headers[col].PadRight(columnWidths[col]));
-            }
-            Console.WriteLine();
-
-            Console.SetCursorPosition(x + 2, y + 7);
-            Console.WriteLine(new string('─', width - 4));
-            Console.ResetColor();
-
-            for (int i = 0; i < reportData.GetLength(0); i++)
-            {
-                Console.SetCursorPosition(x + 2, y + 8 + i * 2);
-                for (int col = 0; col < reportData.GetLength(1); col++)
-                {
-                    Console.Write(reportData[i, col].PadRight(columnWidths[col]));
-                }
-                Console.WriteLine();
-                if (i < reportData.GetLength(0) - 1)
-                {
-                    Console.SetCursorPosition(x + 2, y + 9 + i * 2);
-                    Console.WriteLine(new string('─', width - 4));
-                }
-            }
-
-            Console.SetCursorPosition(x + 2, y + 12 + (reportData.GetLength(0) - 1) * 2);
-            Console.WriteLine("+ Nhấn ESC để quay lại");
+            Console.SetCursorPosition(x + 2, y + height - 2);
+            Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
             Console.ReadKey();
-            Console.Clear();
         }
 
         private void ShowPlaceholder(string option)
@@ -1251,6 +1315,847 @@ namespace HotelManagementSystem
             Console.Write("Nhấn phím bất kỳ để quay lại...");
             Console.ReadKey();
             Console.Clear();
+        }
+
+        private void ShowRoomManagement()
+        {
+            while (true)
+            {
+                Console.Clear();
+                DrawHeader("Quản Lý Phòng");
+                int optionCount = 7;
+                SetupBox(70, 8 + optionCount * 2 + 4);
+
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.SetCursorPosition(x + 2, y + 2);
+                Console.Write($"Chào mừng, {currentUsername}! (Vai trò: {currentRole ?? "Chưa đăng nhập"})");
+                Console.SetCursorPosition(x + 2, y + 3);
+                Console.Write(new string('─', width - 4));
+
+                Console.SetCursorPosition(x + 2, y + 4);
+                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                Console.SetCursorPosition(x + 2, y + 5);
+                Console.Write(new string('─', width - 4));
+
+                string[] options = new[] {
+                    "Xem danh sách phòng",
+                    "Thêm phòng mới",
+                    "Sửa thông tin phòng",
+                    "Xóa phòng",
+                    "Tìm kiếm phòng",
+                    "Kiểm tra phòng trống theo thời gian",
+                    "Quay lại"
+                };
+                for (int i = 0; i < options.Length; i++)
+                {
+                    int optionY = y + 6 + i * 2;
+                    Console.SetCursorPosition(x + 2, optionY);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write($"{i + 1}. ");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write(options[i]);
+                    if (i < options.Length - 1)
+                    {
+                        Console.SetCursorPosition(x + 2, optionY + 1);
+                        Console.Write(new string('─', width - 4));
+                    }
+                }
+
+                Console.SetCursorPosition(x + 2, y + height - 4);
+                Console.Write("Lựa chọn của bạn: ");
+                string? choiceInput = ReadInputWithEscape(x + 20, y + height - 4);
+                int choice = 0;
+                int.TryParse(choiceInput, out choice);
+                switch (choice)
+                {
+                    case 1:
+                        // Xem danh sách phòng
+                        ShowRoomList();
+                        break;
+                    case 2:
+                        // Thêm phòng mới
+                        ShowAddRoom();
+                        break;
+                    case 3:
+                        // Sửa thông tin phòng
+                        ShowEditRoom();
+                        break;
+                    case 4:
+                        // Xóa phòng
+                        ShowDeleteRoom();
+                        break;
+                    case 5:
+                        // Tìm kiếm phòng
+                        ShowSearchRoom();
+                        break;
+                    case 6:
+                        // Kiểm tra phòng trống theo thời gian
+                        ShowCheckRoomAvailability();
+                        break;
+                    case 7:
+                        Console.Clear();
+                        return;
+                    default:
+                        ShowErrorMessage("Lựa chọn không hợp lệ!");
+                        Console.ReadKey();
+                        break;
+                }
+            }
+        }
+
+        private void ShowRoomList()
+        {
+            var rooms = roomManager?.GetAllRooms();
+            Console.Clear();
+            DrawHeader("Danh Sách Phòng");
+            SetupBox(120, 30);
+            if (rooms != null && rooms.Count > 0)
+            {
+                string[] headers = { "RoomID", "RoomNumber", "RoomType", "Price", "Status", "Amenities" };
+                int[] columnWidths = { 8, 12, 10, 10, 18, 40 };
+                Console.SetCursorPosition(x + 2, y + 2);
+                for (int i = 0; i < headers.Length; i++)
+                    Console.Write(headers[i].PadRight(columnWidths[i]));
+                Console.WriteLine();
+                Console.SetCursorPosition(x + 2, y + 3);
+                Console.WriteLine(new string('─', width - 4));
+                int rowIndex = 0;
+                foreach (var room in rooms)
+                {
+                    Console.SetCursorPosition(x + 2, y + 4 + rowIndex);
+                    Console.Write(room.RoomID.ToString().PadRight(columnWidths[0]));
+                    Console.Write(room.RoomNumber.PadRight(columnWidths[1]));
+                    Console.Write(room.RoomType.PadRight(columnWidths[2]));
+                    Console.Write(room.Price.ToString("N0").PadRight(columnWidths[3]));
+                    Console.Write(room.Status.PadRight(columnWidths[4]));
+                    Console.Write(room.Amenities.PadRight(columnWidths[5]));
+                    Console.WriteLine();
+                    rowIndex++;
+                }
+            }
+            else
+            {
+                Console.SetCursorPosition(x + 2, y + 4);
+                Console.WriteLine("Không có phòng nào!");
+            }
+            Console.SetCursorPosition(x + 2, y + height - 2);
+            Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
+            Console.ReadKey();
+        }
+
+        private void ShowAddRoom()
+        {
+            Console.Clear();
+            DrawHeader("Thêm Phòng Mới");
+            SetupBox(80, 16);
+            Console.SetCursorPosition(x + 2, y + 2);
+            string? roomNumber = ReadInputWithEscape(x + 20, y + 2, "Số phòng: ", s => !string.IsNullOrWhiteSpace(s), "Không được để trống!");
+            if (roomNumber == null) return;
+            Console.SetCursorPosition(x + 2, y + 3);
+            string? roomType = ReadInputWithEscape(x + 20, y + 3, "Loại phòng (Single/Double/Suite): ", s => new[]{"Single","Double","Suite"}.Contains(s), "Chỉ nhận Single/Double/Suite!");
+            if (roomType == null) return;
+            Console.SetCursorPosition(x + 2, y + 4);
+            string? priceStr = ReadInputWithEscape(x + 20, y + 4, "Giá: ", s => decimal.TryParse(s, out var v) && v > 0, "Giá phải là số dương!");
+            if (priceStr == null) return;
+            decimal price = decimal.Parse(priceStr);
+            Console.SetCursorPosition(x + 2, y + 5);
+            string? amenities = ReadInputWithEscape(x + 20, y + 5, "Tiện nghi: ", s => !string.IsNullOrWhiteSpace(s), "Không được để trống!");
+            if (amenities == null) return;
+            try
+            {
+                roomManager?.AddRoom(roomNumber, roomType, price, amenities, currentUserId, currentUsername ?? "");
+                ShowSuccessMessage("Thêm phòng thành công!");
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(ex.Message);
+            }
+            Console.ReadKey();
+        }
+
+        private void ShowEditRoom()
+        {
+            Console.Clear();
+            DrawHeader("Sửa Thông Tin Phòng");
+            SetupBox(80, 18);
+            Console.SetCursorPosition(x + 2, y + 2);
+            string? roomIdStr = ReadInputWithEscape(x + 20, y + 2, "RoomID: ", s => int.TryParse(s, out var v) && v > 0, "ID phải là số dương!");
+            if (roomIdStr == null) return;
+            int roomId = int.Parse(roomIdStr);
+            Console.SetCursorPosition(x + 2, y + 3);
+            string? roomNumber = ReadInputWithEscape(x + 20, y + 3, "Số phòng: ", s => !string.IsNullOrWhiteSpace(s), "Không được để trống!");
+            if (roomNumber == null) return;
+            Console.SetCursorPosition(x + 2, y + 4);
+            string? roomType = ReadInputWithEscape(x + 20, y + 4, "Loại phòng (Single/Double/Suite): ", s => new[]{"Single","Double","Suite"}.Contains(s), "Chỉ nhận Single/Double/Suite!");
+            if (roomType == null) return;
+            Console.SetCursorPosition(x + 2, y + 5);
+            string? priceStr = ReadInputWithEscape(x + 20, y + 5, "Giá: ", s => decimal.TryParse(s, out var v) && v > 0, "Giá phải là số dương!");
+            if (priceStr == null) return;
+            decimal price = decimal.Parse(priceStr);
+            Console.SetCursorPosition(x + 2, y + 6);
+            string? status = ReadInputWithEscape(x + 20, y + 6, "Trạng thái (Available/Occupied/Under Maintenance): ", s => new[]{"Available","Occupied","Under Maintenance"}.Contains(s), "Sai trạng thái!");
+            if (status == null) return;
+            Console.SetCursorPosition(x + 2, y + 7);
+            string? amenities = ReadInputWithEscape(x + 20, y + 7, "Tiện nghi: ", s => !string.IsNullOrWhiteSpace(s), "Không được để trống!");
+            if (amenities == null) return;
+            try
+            {
+                roomManager?.UpdateRoom(roomId, roomNumber, roomType, price, status, amenities, currentUserId, currentUsername ?? "");
+                ShowSuccessMessage("Cập nhật phòng thành công!");
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(ex.Message);
+            }
+            Console.ReadKey();
+        }
+
+        private void ShowDeleteRoom()
+        {
+            Console.Clear();
+            DrawHeader("Xóa Phòng");
+            SetupBox(60, 10);
+            Console.SetCursorPosition(x + 2, y + 2);
+            string? roomIdStr = ReadInputWithEscape(x + 20, y + 2, "RoomID: ", s => int.TryParse(s, out var v) && v > 0, "ID phải là số dương!");
+            if (roomIdStr == null) return;
+            int roomId = int.Parse(roomIdStr);
+            try
+            {
+                roomManager?.DeleteRoom(roomId, currentUserId, currentUsername ?? "");
+                ShowSuccessMessage("Xóa phòng thành công!");
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(ex.Message);
+            }
+            Console.ReadKey();
+        }
+
+        private void ShowSearchRoom()
+        {
+            Console.Clear();
+            DrawHeader("Tìm Kiếm Phòng");
+            SetupBox(80, 14);
+            Console.SetCursorPosition(x + 2, y + 2);
+            string? status = ReadInputWithEscape(x + 20, y + 2, "Trạng thái (Available/Occupied/Under Maintenance hoặc để trống): ", s => string.IsNullOrWhiteSpace(s) || new[]{"Available","Occupied","Under Maintenance"}.Contains(s), "Sai trạng thái!");
+            if (status == null) return;
+            Console.SetCursorPosition(x + 2, y + 3);
+            string? roomType = ReadInputWithEscape(x + 20, y + 3, "Loại phòng (Single/Double/Suite hoặc để trống): ", s => string.IsNullOrWhiteSpace(s) || new[]{"Single","Double","Suite"}.Contains(s), "Sai loại!");
+            if (roomType == null) return;
+            Console.SetCursorPosition(x + 2, y + 4);
+            string? priceStr = ReadInputWithEscape(x + 20, y + 4, "Giá tối thiểu (hoặc để trống): ", s => string.IsNullOrWhiteSpace(s) || decimal.TryParse(s, out var v), "Sai giá!");
+            decimal? minPrice = string.IsNullOrWhiteSpace(priceStr) ? null : decimal.Parse(priceStr);
+            Console.SetCursorPosition(x + 2, y + 5);
+            priceStr = ReadInputWithEscape(x + 20, y + 5, "Giá tối đa (hoặc để trống): ", s => string.IsNullOrWhiteSpace(s) || decimal.TryParse(s, out var v), "Sai giá!");
+            decimal? maxPrice = string.IsNullOrWhiteSpace(priceStr) ? null : decimal.Parse(priceStr);
+            try
+            {
+                var searchRooms = roomManager?.SearchRooms(status, roomType, minPrice, maxPrice);
+                Console.Clear();
+                DrawHeader("Kết Quả Tìm Kiếm Phòng");
+                SetupBox(120, 30);
+                if (searchRooms != null && searchRooms.Count > 0)
+                {
+                    string[] headers = { "RoomID", "RoomNumber", "RoomType", "Price", "Status", "Amenities" };
+                    int[] columnWidths = { 8, 12, 10, 10, 18, 40 };
+                    Console.SetCursorPosition(x + 2, y + 2);
+                    for (int i = 0; i < headers.Length; i++)
+                        Console.Write(headers[i].PadRight(columnWidths[i]));
+                    Console.WriteLine();
+                    Console.SetCursorPosition(x + 2, y + 3);
+                    Console.WriteLine(new string('─', width - 4));
+                    int rowIndex = 0;
+                    foreach (var room in searchRooms)
+                    {
+                        Console.SetCursorPosition(x + 2, y + 4 + rowIndex);
+                        Console.Write(room.RoomID.ToString().PadRight(columnWidths[0]));
+                        Console.Write(room.RoomNumber.PadRight(columnWidths[1]));
+                        Console.Write(room.RoomType.PadRight(columnWidths[2]));
+                        Console.Write(room.Price.ToString("N0").PadRight(columnWidths[3]));
+                        Console.Write(room.Status.PadRight(columnWidths[4]));
+                        Console.Write(room.Amenities.PadRight(columnWidths[5]));
+                        Console.WriteLine();
+                        rowIndex++;
+                    }
+                }
+                else
+                {
+                    Console.SetCursorPosition(x + 2, y + 4);
+                    Console.WriteLine("Không có phòng nào phù hợp!");
+                }
+                Console.SetCursorPosition(x + 2, y + height - 2);
+                Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
+                Console.ReadKey();
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(ex.Message);
+                Console.ReadKey();
+            }
+        }
+
+        private void ShowCheckRoomAvailability()
+        {
+            Console.Clear();
+            DrawHeader("Kiểm Tra Phòng Trống");
+            SetupBox(80, 12);
+            Console.SetCursorPosition(x + 2, y + 2);
+            string? checkInStr = ReadInputWithEscape(x + 20, y + 2, "Ngày nhận (yyyy-MM-dd): ", s => DateTime.TryParse(s, out _), "Sai định dạng!");
+            if (checkInStr == null) return;
+            DateTime checkIn = DateTime.Parse(checkInStr);
+            Console.SetCursorPosition(x + 2, y + 3);
+            string? checkOutStr = ReadInputWithEscape(x + 20, y + 3, "Ngày trả (yyyy-MM-dd): ", s => DateTime.TryParse(s, out _), "Sai định dạng!");
+            if (checkOutStr == null) return;
+            DateTime checkOut = DateTime.Parse(checkOutStr);
+            try
+            {
+                var availableRooms = roomManager?.CheckRoomAvailability(checkIn, checkOut);
+                Console.Clear();
+                DrawHeader("Phòng Trống Theo Thời Gian");
+                SetupBox(120, 30);
+                if (availableRooms != null && availableRooms.Count > 0)
+                {
+                    string[] headers = { "RoomID", "RoomNumber", "RoomType", "Price", "Status" };
+                    int[] columnWidths = { 8, 12, 10, 10, 18 };
+                    Console.SetCursorPosition(x + 2, y + 2);
+                    for (int i = 0; i < headers.Length; i++)
+                        Console.Write(headers[i].PadRight(columnWidths[i]));
+                    Console.WriteLine();
+                    Console.SetCursorPosition(x + 2, y + 3);
+                    Console.WriteLine(new string('─', width - 4));
+                    int rowIndex = 0;
+                    foreach (var room in availableRooms)
+                    {
+                        Console.SetCursorPosition(x + 2, y + 4 + rowIndex);
+                        Console.Write(room.RoomID.ToString().PadRight(columnWidths[0]));
+                        Console.Write(room.RoomNumber.PadRight(columnWidths[1]));
+                        Console.Write(room.RoomType.PadRight(columnWidths[2]));
+                        Console.Write(room.Price.ToString("N0").PadRight(columnWidths[3]));
+                        Console.Write(room.Status.PadRight(columnWidths[4]));
+                        Console.WriteLine();
+                        rowIndex++;
+                    }
+                }
+                else
+                {
+                    Console.SetCursorPosition(x + 2, y + 4);
+                    Console.WriteLine("Không có phòng trống!");
+                }
+                Console.SetCursorPosition(x + 2, y + height - 2);
+                Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
+                Console.ReadKey();
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(ex.Message);
+                Console.ReadKey();
+            }
+        }
+
+        private void ShowBookingManagement()
+        {
+            while (true)
+            {
+                Console.Clear();
+                DrawHeader("Quản Lý Đặt Phòng");
+                int optionCount = 6;
+                SetupBox(70, 8 + optionCount * 2 + 4);
+
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.SetCursorPosition(x + 2, y + 2);
+                Console.Write($"Chào mừng, {currentUsername}! (Vai trò: {currentRole ?? "Chưa đăng nhập"})");
+                Console.SetCursorPosition(x + 2, y + 3);
+                Console.Write(new string('─', width - 4));
+
+                Console.SetCursorPosition(x + 2, y + 4);
+                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                Console.SetCursorPosition(x + 2, y + 5);
+                Console.Write(new string('─', width - 4));
+
+                string[] options = new[] {
+                    "Xem danh sách đặt phòng",
+
+                    "Thêm đặt phòng mới",
+                    "Sửa thông tin đặt phòng",
+                    "Hủy đặt phòng",
+                    "Tìm kiếm đặt phòng theo trạng thái",
+                    "Quay lại"
+                };
+                for (int i = 0; i < options.Length; i++)
+                {
+                    int optionY = y + 6 + i * 2;
+                    Console.SetCursorPosition(x + 2, optionY);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write($"{i + 1}. ");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write(options[i]);
+                    if (i < options.Length - 1)
+                    {
+                        Console.SetCursorPosition(x + 2, optionY + 1);
+                        Console.Write(new string('─', width - 4));
+                    }
+                }
+
+                Console.SetCursorPosition(x + 2, y + height - 4);
+                Console.Write("Lựa chọn của bạn: ");
+                string? choiceInput = ReadInputWithEscape(x + 20, y + height - 4);
+                int choice = 0;
+                int.TryParse(choiceInput, out choice);
+                switch (choice)
+                {
+                    case 1:
+                        ShowBookingList();
+                        break;
+                    case 2:
+                        ShowAddBooking();
+                        break;
+                    case 3:
+                        ShowEditBooking();
+                        break;
+                    case 4:
+                        ShowCancelBooking();
+                        break;
+                    case 5:
+                        ShowSearchBooking();
+                        break;
+                    case 6:
+                        Console.Clear();
+                        return;
+                    default:
+                        ShowErrorMessage("Lựa chọn không hợp lệ!");
+                        Console.ReadKey();
+                        break;
+                }
+            }
+        }
+
+        private void ShowBookingList()
+        {
+            var bookings = bookingManager?.GetAllBookings();
+            Console.Clear();
+            DrawHeader("Danh Sách Đặt Phòng");
+            SetupBox(100, 30);
+            if (bookings != null && bookings.Count > 0)
+            {
+                string[] headers = { "BookingID", "CustomerID", "RoomID", "CheckInDate", "CheckOutDate", "Status" };
+                int[] columnWidths = { 10, 12, 10, 15, 15, 12 };
+                Console.SetCursorPosition(x + 2, y + 2);
+                for (int i = 0; i < headers.Length; i++)
+                    Console.Write(headers[i].PadRight(columnWidths[i]));
+                Console.WriteLine();
+                Console.SetCursorPosition(x + 2, y + 3);
+                Console.WriteLine(new string('─', width - 4));
+                int rowIndex = 0;
+                foreach (var booking in bookings)
+                {
+                    Console.SetCursorPosition(x + 2, y + 4 + rowIndex);
+                    Console.Write(booking.BookingID.ToString().PadRight(columnWidths[0]));
+                    Console.Write(booking.CustomerID.ToString().PadRight(columnWidths[1]));
+                    Console.Write(booking.RoomID.ToString().PadRight(columnWidths[2]));
+                    Console.Write(booking.CheckInDate.ToString("yyyy-MM-dd").PadRight(columnWidths[3]));
+                    Console.Write(booking.CheckOutDate.ToString("yyyy-MM-dd").PadRight(columnWidths[4]));
+                    Console.Write(booking.Status.PadRight(columnWidths[5]));
+                    Console.WriteLine();
+                    rowIndex++;
+                }
+            }
+            else
+            {
+                Console.SetCursorPosition(x + 2, y + 4);
+                Console.WriteLine("Không có đặt phòng nào!");
+            }
+            Console.SetCursorPosition(x + 2, y + height - 2);
+            Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
+            Console.ReadKey();
+        }
+
+        private void ShowAddBooking()
+        {
+            Console.Clear();
+            DrawHeader("Thêm Đặt Phòng Mới");
+            SetupBox(80, 14);
+            Console.SetCursorPosition(x + 2, y + 2);
+            string? customerIdStr = ReadInputWithEscape(x + 20, y + 2, "Mã khách hàng: ", s => int.TryParse(s, out var v) && v > 0, "ID phải là số dương!");
+            if (customerIdStr == null) return;
+            int customerId = int.Parse(customerIdStr);
+            Console.SetCursorPosition(x + 2, y + 3);
+            string? roomIdStr = ReadInputWithEscape(x + 20, y + 3, "RoomID: ", s => int.TryParse(s, out var v) && v > 0, "ID phải là số dương!");
+            if (roomIdStr == null) return;
+            int roomId = int.Parse(roomIdStr);
+            Console.SetCursorPosition(x + 2, y + 4);
+            string? checkInStr = ReadInputWithEscape(x + 20, y + 4, "Ngày nhận (yyyy-MM-dd): ", s => DateTime.TryParse(s, out _), "Sai định dạng!");
+            if (checkInStr == null) return;
+            DateTime checkIn = DateTime.Parse(checkInStr);
+            Console.SetCursorPosition(x + 2, y + 5);
+            string? checkOutStr = ReadInputWithEscape(x + 20, y + 5, "Ngày trả (yyyy-MM-dd): ", s => DateTime.TryParse(s, out _), "Sai định dạng!");
+            if (checkOutStr == null) return;
+            DateTime checkOut = DateTime.Parse(checkOutStr);
+            try
+            {
+                bookingManager?.AddBooking(customerId, roomId, checkIn, checkOut, currentUserId, currentUsername ?? string.Empty);
+                ShowSuccessMessage("Thêm đặt phòng thành công!");
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(ex.Message);
+            }
+            Console.ReadKey();
+        }
+
+        private void ShowEditBooking()
+        {
+            Console.Clear();
+            DrawHeader("Sửa Thông Tin Đặt Phòng");
+            SetupBox(80, 14);
+            Console.SetCursorPosition(x + 2, y + 2);
+            string? bookingIdStr = ReadInputWithEscape(x + 20, y + 2, "BookingID: ", s => int.TryParse(s, out var v) && v > 0, "ID phải là số dương!");
+            if (bookingIdStr == null) return;
+            int bookingId = int.Parse(bookingIdStr);
+            Console.SetCursorPosition(x + 2, y + 3);
+            string? roomIdStr = ReadInputWithEscape(x + 20, y + 3, "RoomID: ", s => int.TryParse(s, out var v) && v > 0, "ID phải là số dương!");
+            if (roomIdStr == null) return;
+            int roomId = int.Parse(roomIdStr);
+            Console.SetCursorPosition(x + 2, y + 4);
+            string? checkInStr = ReadInputWithEscape(x + 20, y + 4, "Ngày nhận (yyyy-MM-dd): ", s => DateTime.TryParse(s, out _), "Sai định dạng!");
+            if (checkInStr == null) return;
+            DateTime checkIn = DateTime.Parse(checkInStr);
+            Console.SetCursorPosition(x + 2, y + 5);
+            string? checkOutStr = ReadInputWithEscape(x + 20, y + 5, "Ngày trả (yyyy-MM-dd): ", s => DateTime.TryParse(s, out _), "Sai định dạng!");
+            if (checkOutStr == null) return;
+            DateTime checkOut = DateTime.Parse(checkOutStr);
+            Console.SetCursorPosition(x + 2, y + 6);
+            string? status = ReadInputWithEscape(x + 20, y + 6, "Trạng thái (Confirmed/Canceled): ", s => new[]{"Confirmed","Canceled"}.Contains(s), "Sai trạng thái!");
+            if (status == null) return;
+            try
+            {
+                bookingManager?.UpdateBooking(bookingId, roomId, checkIn, checkOut, status, currentUserId, currentUsername ?? string.Empty);
+                ShowSuccessMessage("Cập nhật thông tin đặt phòng thành công!");
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(ex.Message);
+            }
+            Console.ReadKey();
+        }
+
+        private void ShowCancelBooking()
+        {
+            Console.Clear();
+            DrawHeader("Hủy Đặt Phòng");
+            SetupBox(60, 10);
+            Console.SetCursorPosition(x + 2, y + 2);
+            string? bookingIdStr = ReadInputWithEscape(x + 20, y + 2, "BookingID: ", s => int.TryParse(s, out var v) && v > 0, "ID phải là số dương!");
+            if (bookingIdStr == null) return;
+            int bookingId = int.Parse(bookingIdStr);
+            Console.SetCursorPosition(x + 2, y + 3);
+            string? reason = ReadInputWithEscape(x + 20, y + 3, "Lý do hủy: ", s => !string.IsNullOrWhiteSpace(s), "Vui lòng nhập lý do!");
+            if (reason == null) return;
+            try
+            {
+                bookingManager?.CancelBooking(bookingId, reason, currentUserId, currentUsername ?? string.Empty);
+                ShowSuccessMessage("Hủy đặt phòng thành công!");
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(ex.Message);
+            }
+            Console.ReadKey();
+        }
+
+        private void ShowSearchBooking()
+        {
+            Console.Clear();
+            DrawHeader("Tìm Kiếm Đặt Phòng");
+            SetupBox(80, 10);
+            Console.SetCursorPosition(x + 2, y + 2);
+            string? status = ReadInputWithEscape(x + 20, y + 2, "Trạng thái (Confirmed/Canceled hoặc để trống): ", s => string.IsNullOrWhiteSpace(s) || new[]{"Confirmed","Canceled"}.Contains(s), "Sai trạng thái!");
+            if (status == null) return;
+            try
+            {
+                var searchBookings = bookingManager?.SearchBookings(string.IsNullOrWhiteSpace(status) ? null : status);
+                Console.Clear();
+                DrawHeader("Kết Quả Tìm Kiếm Đặt Phòng");
+                SetupBox(100, 30);
+                if (searchBookings != null && searchBookings.Count > 0)
+                {
+                    string[] headers = { "BookingID", "CustomerID", "RoomID", "CheckInDate", "CheckOutDate", "Status" };
+                    int[] columnWidths = { 10, 12, 10, 15, 15, 12 };
+                    Console.SetCursorPosition(x + 2, y + 2);
+                    for (int i = 0; i < headers.Length; i++)
+                        Console.Write(headers[i].PadRight(columnWidths[i]));
+                    Console.WriteLine();
+                    Console.SetCursorPosition(x + 2, y + 3);
+                    Console.WriteLine(new string('─', width - 4));
+                    int rowIndex = 0;
+                    foreach (var booking in searchBookings)
+                    {
+                        Console.SetCursorPosition(x + 2, y + 4 + rowIndex);
+                        Console.Write(booking.BookingID.ToString().PadRight(columnWidths[0]));
+                        Console.Write(booking.CustomerID.ToString().PadRight(columnWidths[1]));
+                        Console.Write(booking.RoomID.ToString().PadRight(columnWidths[2]));
+                        Console.Write(booking.CheckInDate.ToString("yyyy-MM-dd").PadRight(columnWidths[3]));
+                        Console.Write(booking.CheckOutDate.ToString("yyyy-MM-dd").PadRight(columnWidths[4]));
+                        Console.Write(booking.Status.PadRight(columnWidths[5]));
+                        Console.WriteLine();
+                        rowIndex++;
+                    }
+                }
+                else
+                {
+                    Console.SetCursorPosition(x + 2, y + 4);
+                    Console.WriteLine("Không có đặt phòng nào phù hợp!");
+                }
+                Console.SetCursorPosition(x + 2, y + height - 2);
+                Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
+                Console.ReadKey();
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage(ex.Message);
+                Console.ReadKey();
+            }
+        }
+
+        private void ShowServiceManagement()
+        {
+            while (true)
+            {
+                Console.Clear();
+                DrawHeader("Quản Lý Dịch Vụ");
+                int optionCount = 7;
+                SetupBox(80, 8 + optionCount * 2 + 4);
+
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.SetCursorPosition(x + 2, y + 2);
+                Console.Write($"Chào mừng, {currentUsername}! (Vai trò: {currentRole ?? "Chưa đăng nhập"})");
+                Console.SetCursorPosition(x + 2, y + 3);
+                Console.Write(new string('─', width - 4));
+
+                Console.SetCursorPosition(x + 2, y + 4);
+                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                Console.SetCursorPosition(x + 2, y + 5);
+                Console.Write(new string('─', width - 4));
+
+                string[] options = new[]
+                {
+                    "Xem danh sách dịch vụ",
+                    "Thêm dịch vụ mới",
+                    "Cập nhật dịch vụ",
+                    "Xóa dịch vụ",
+                    "Ghi nhận dịch vụ cho booking",
+                    "Xem dịch vụ đã sử dụng theo booking",
+                    "Quay lại menu chính"
+                };
+                for (int i = 0; i < options.Length; i++)
+                {
+                    int optionY = y + 6 + i * 2;
+                    Console.SetCursorPosition(x + 2, optionY);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write($"{i + 1}. ");
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.Write(options[i]);
+                    if (i < options.Length - 1)
+                    {
+                        Console.SetCursorPosition(x + 2, optionY + 1);
+                        Console.Write(new string('─', width - 4));
+                    }
+                }
+
+                Console.SetCursorPosition(x + 2, y + height - 4);
+                Console.Write("Lựa chọn của bạn: ");
+                string? choice = ReadInputWithEscape(x + 20, y + height - 4);
+                if (!int.TryParse(choice, out int opt) || opt < 1 || opt > options.Length)
+                {
+                    ShowErrorMessage("Lựa chọn không hợp lệ!");
+                    Console.ReadKey();
+                    continue;
+                }
+                if (opt == options.Length) break;
+                switch (opt)
+                {
+                    case 1:
+                        ShowAllServices();
+                        break;
+                    case 2:
+                        AddService();
+                        break;
+                    case 3:
+                        UpdateService();
+                        break;
+                    case 4:
+                        DeleteService();
+                        break;
+                    case 5:
+                        AddServiceUsageToBooking();
+                        break;
+                    case 6:
+                        ShowServiceUsageByBooking();
+                        break;
+                }
+            }
+        }
+
+        private void ShowAllServices()
+        {
+            Console.Clear();
+            DrawHeader("Danh Sách Dịch Vụ");
+            var services = serviceManager?.GetAllServices() ?? new List<Service>();
+            Console.SetCursorPosition(x + 2, y + 3);
+            Console.WriteLine($"{"ID",4} {"Tên dịch vụ",-25} {"Loại",-10} {"Giá",10}");
+            foreach (var s in services)
+            {
+                Console.SetCursorPosition(x + 2, Console.CursorTop);
+                Console.WriteLine($"{s.ServiceID,4} {s.ServiceName,-25} {s.Type,-10} {s.Price,10:N0}");
+            }
+            Console.SetCursorPosition(x + 2, y + height - 2);
+            Console.Write("Nhấn phím bất kỳ để quay lại...");
+            Console.ReadKey();
+        }
+
+        private void AddService()
+        {
+            Console.Clear();
+            DrawHeader("Thêm Dịch Vụ Mới");
+            Console.SetCursorPosition(x + 2, y + 3);
+            Console.Write("Tên dịch vụ: ");
+            string? name = Console.ReadLine();
+            Console.SetCursorPosition(x + 2, y + 4);
+            Console.Write("Loại (Food/Laundry/Spa/Other): ");
+            string? type = Console.ReadLine();
+            Console.SetCursorPosition(x + 2, y + 5);
+            Console.Write("Giá: ");
+            string? priceStr = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(type) || !decimal.TryParse(priceStr, out decimal price))
+            {
+                ShowErrorMessage("Thông tin không hợp lệ!");
+                Console.ReadKey();
+                return;
+            }
+            var service = new Service { ServiceName = name, Type = type, Price = price, UpdatedBy = currentUserId, UpdatedByUsername = currentUsername };
+            if (serviceManager?.AddService(service) == true)
+                ShowSuccessMessage("Thêm dịch vụ thành công!");
+            else
+                ShowErrorMessage("Thêm dịch vụ thất bại!");
+            Console.ReadKey();
+        }
+
+        private void UpdateService()
+        {
+            Console.Clear();
+            DrawHeader("Cập Nhật Dịch Vụ");
+            Console.SetCursorPosition(x + 2, y + 3);
+            Console.Write("Nhập ID dịch vụ cần sửa: ");
+            string? idStr = Console.ReadLine();
+            if (!int.TryParse(idStr, out int id))
+            {
+                ShowErrorMessage("ID không hợp lệ!");
+                Console.ReadKey();
+                return;
+            }
+            var service = serviceManager?.GetServiceById(id);
+            if (service == null)
+            {
+                ShowErrorMessage("Không tìm thấy dịch vụ!");
+                Console.ReadKey();
+                return;
+            }
+            Console.SetCursorPosition(x + 2, y + 4);
+            Console.Write($"Tên dịch vụ ({service.ServiceName}): ");
+            string? name = Console.ReadLine();
+            Console.SetCursorPosition(x + 2, y + 5);
+            Console.Write($"Loại ({service.Type}): ");
+            string? type = Console.ReadLine();
+            Console.SetCursorPosition(x + 2, y + 6);
+            Console.Write($"Giá ({service.Price}): ");
+            string? priceStr = Console.ReadLine();
+            if (!string.IsNullOrWhiteSpace(name)) service.ServiceName = name;
+            if (!string.IsNullOrWhiteSpace(type)) service.Type = type;
+            if (decimal.TryParse(priceStr, out decimal price)) service.Price = price;
+            service.UpdatedBy = currentUserId;
+            service.UpdatedByUsername = currentUsername;
+            if (serviceManager?.UpdateService(service) == true)
+                ShowSuccessMessage("Cập nhật thành công!");
+            else
+                ShowErrorMessage("Cập nhật thất bại!");
+            Console.ReadKey();
+        }
+
+        private void DeleteService()
+        {
+            Console.Clear();
+            DrawHeader("Xóa Dịch Vụ");
+            Console.SetCursorPosition(x + 2, y + 3);
+            Console.Write("Nhập ID dịch vụ cần xóa: ");
+            string? idStr = Console.ReadLine();
+            if (!int.TryParse(idStr, out int id))
+            {
+                ShowErrorMessage("ID không hợp lệ!");
+                Console.ReadKey();
+                return;
+            }
+            if (serviceManager?.DeleteService(id) == true)
+                ShowSuccessMessage("Xóa thành công!");
+            else
+                ShowErrorMessage("Xóa thất bại!");
+            Console.ReadKey();
+        }
+
+        private void AddServiceUsageToBooking()
+        {
+            Console.Clear();
+            DrawHeader("Ghi Nhận Dịch Vụ Cho Booking");
+            Console.SetCursorPosition(x + 2, y + 3);
+            Console.Write("BookingID: ");
+            string? bookingIdStr = Console.ReadLine();
+            Console.SetCursorPosition(x + 2, y + 4);
+            Console.Write("ServiceID: ");
+            string? serviceIdStr = Console.ReadLine();
+            Console.SetCursorPosition(x + 2, y + 5);
+            Console.Write("CustomerID: ");
+            string? customerIdStr = Console.ReadLine();
+            Console.SetCursorPosition(x + 2, y + 6);
+            Console.Write("Số lượng: ");
+            string? quantityStr = Console.ReadLine();
+            Console.SetCursorPosition(x + 2, y + 7);
+            Console.Write("Ngày sử dụng (yyyy-MM-dd): ");
+            string? dateStr = Console.ReadLine();
+            if (!int.TryParse(bookingIdStr, out int bookingId) || !int.TryParse(serviceIdStr, out int serviceId) || !int.TryParse(customerIdStr, out int customerId) || !int.TryParse(quantityStr, out int quantity) || !DateTime.TryParse(dateStr, out DateTime date))
+            {
+                ShowErrorMessage("Thông tin không hợp lệ!");
+                Console.ReadKey();
+                return;
+            }
+            if (invoiceManager.AddServiceUsage(bookingId, serviceId, customerId, quantity, date, currentUserId, currentUsername ?? "") == true)
+                ShowSuccessMessage("Ghi nhận dịch vụ thành công!");
+            else
+                ShowErrorMessage("Ghi nhận thất bại!");
+            Console.ReadKey();
+        }
+
+        private void ShowServiceUsageByBooking()
+        {
+            Console.Clear();
+            DrawHeader("Dịch Vụ Đã Sử Dụng Theo Booking");
+            Console.SetCursorPosition(x + 2, y + 3);
+            Console.Write("Nhập BookingID: ");
+            string? bookingIdStr = Console.ReadLine();
+            if (!int.TryParse(bookingIdStr, out int bookingId))
+            {
+                ShowErrorMessage("ID không hợp lệ!");
+                Console.ReadKey();
+                return;
+            }
+            var usages = invoiceManager.GetServiceUsagesByBooking(bookingId);
+            Console.SetCursorPosition(x + 2, y + 5);
+            Console.WriteLine($"{"Tên dịch vụ",-25} {"Loại",-10} {"Số lượng",8} {"Tổng tiền",12} {"Trạng thái",10}");
+            foreach (var u in usages)
+            {
+                Console.SetCursorPosition(x + 2, Console.CursorTop);
+                Console.WriteLine($"{u.ServiceName,-25} {u.Type,-10} {u.Quantity,8} {u.TotalPrice,12:N0} {u.PaymentStatus,10}");
+            }
+            Console.SetCursorPosition(x + 2, y + height - 2);
+            Console.Write("Nhấn phím bất kỳ để quay lại...");
+            Console.ReadKey();
         }
 
         public void ShowSuccessMessage(string message)
@@ -1301,8 +2206,8 @@ namespace HotelManagementSystem
                             ShowSuccessMessage("Đăng nhập thành công!");
                             Thread.Sleep(1000);
                             Console.Clear();
-                            customerManager = new CustomerManagement(currentRole, currentUserId, currentUsername);
-                            staffManager = new StaffManagement(currentRole, currentUserId, currentUsername);
+                            customerManager = new CustomerBL(currentRole ?? string.Empty, currentUserId, currentUsername ?? string.Empty);
+                            staffManager = new StaffBL(currentRole ?? string.Empty, currentUserId, currentUsername ?? string.Empty);
                         }
                         else
                         {
