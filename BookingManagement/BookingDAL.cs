@@ -92,7 +92,7 @@ namespace HotelManagementSystem
                 conn.Open();
                 transaction = conn.BeginTransaction();
 
-                // Kiểm tra đặt phòng tồn tại và ở trạng thái hợp lệ
+              
                 MySqlCommand checkCmd = new MySqlCommand(
                     "SELECT COUNT(*) FROM Bookings WHERE BookingID = @BookingID AND Status = 'Active'", conn)
                 {
@@ -103,7 +103,7 @@ namespace HotelManagementSystem
                 if (count == 0)
                     throw new Exception("Đặt phòng không tồn tại hoặc không hợp lệ để hủy.");
 
-                // Gọi stored procedure cancelBookingWithTransaction
+                
                 MySqlCommand cmd = new MySqlCommand("cancelBookingWithTransaction", conn)
                 {
                     CommandType = CommandType.StoredProcedure,
@@ -112,11 +112,11 @@ namespace HotelManagementSystem
                 cmd.Parameters.AddWithValue("p_BookingID", bookingId);
                 cmd.Parameters.AddWithValue("p_UpdatedBy", updatedBy);
                 cmd.Parameters.AddWithValue("p_UpdatedByUsername", updatedByUsername);
-                cmd.ExecuteNonQuery(); // Bỏ kiểm tra rowsAffected vì stored procedure đã xử lý logic
+                cmd.ExecuteNonQuery(); 
 
                 transaction.Commit();
             }
-            catch (Exception ex) // Xử lý tất cả ngoại lệ
+            catch (Exception ex) 
             {
                 transaction?.Rollback();
                 throw new Exception($"Lỗi khi hủy đặt phòng: {ex.Message}");
@@ -155,7 +155,7 @@ namespace HotelManagementSystem
                 cmd.Parameters.AddWithValue("p_BookingID", BookingId);
                 cmd.Parameters.AddWithValue("p_UpdatedBy", updatedBy);
                 cmd.Parameters.AddWithValue("p_UpdatedByUsername", updatedByUsername);
-                cmd.ExecuteNonQuery(); // Bỏ kiểm tra rowsAffected
+                cmd.ExecuteNonQuery(); 
         
                 transaction.Commit();
             }
@@ -180,7 +180,7 @@ namespace HotelManagementSystem
                  conn.Open();
                  transaction = conn.BeginTransaction();
          
-                 // Kiểm tra đặt phòng tồn tại và ở trạng thái hợp lệ
+                 
                  MySqlCommand checkCmd = new MySqlCommand(
                      "SELECT COUNT(*) FROM Bookings WHERE BookingID = @BookingID AND Status = 'Active'", conn)
                  {
@@ -191,7 +191,7 @@ namespace HotelManagementSystem
                  if (count == 0)
                      throw new Exception("Đặt phòng không tồn tại hoặc không hợp lệ để check-out.");
          
-                 // Gọi stored procedure checkOutWithTransaction
+                 
                  MySqlCommand cmd = new MySqlCommand("checkOutWithTransaction", conn)
                  {
                      CommandType = CommandType.StoredProcedure,
@@ -200,7 +200,7 @@ namespace HotelManagementSystem
                  cmd.Parameters.AddWithValue("p_BookingID", bookingId);
                  cmd.Parameters.AddWithValue("p_UpdatedBy", updatedBy);
                  cmd.Parameters.AddWithValue("p_UpdatedByUsername", updatedByUsername);
-                 cmd.ExecuteNonQuery(); // Bỏ kiểm tra rowsAffected, để stored procedure xử lý
+                 cmd.ExecuteNonQuery(); 
          
                  transaction.Commit();
              }
@@ -227,7 +227,7 @@ namespace HotelManagementSystem
                     conn.Open();
                     transaction = conn.BeginTransaction();
 
-                    // Kiểm tra đặt phòng tồn tại và ở trạng thái hợp lệ
+                   
                     MySqlCommand checkCmd = new MySqlCommand(
                         "SELECT COUNT(*) FROM Bookings WHERE BookingID = @BookingID AND Status = 'Active'", conn)
                     {
@@ -238,14 +238,14 @@ namespace HotelManagementSystem
                     if (count == 0)
                         throw new Exception("Đặt phòng không tồn tại hoặc không hợp lệ để gia hạn.");
 
-                    // Gọi stored procedure extendBookingWithTransaction
+                    
                     MySqlCommand cmd = new MySqlCommand("extendBookingWithTransaction", conn)
                     {
                         CommandType = CommandType.StoredProcedure,
                         Transaction = transaction
                     };
                     cmd.Parameters.AddWithValue("p_BookingID", bookingId);
-                    cmd.Parameters.AddWithValue("p_NewCheckOutDate", newEndDate); // Sửa tên tham số
+                    cmd.Parameters.AddWithValue("p_NewCheckOutDate", newEndDate);
                     cmd.Parameters.AddWithValue("p_UpdatedBy", updatedBy);
                     cmd.Parameters.AddWithValue("p_UpdatedByUsername", updatedByUsername);
                     cmd.ExecuteNonQuery();

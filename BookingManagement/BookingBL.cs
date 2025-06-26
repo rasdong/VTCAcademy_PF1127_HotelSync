@@ -13,12 +13,21 @@ namespace HotelManagementSystem
             return true; // Thay bằng logic thực tế
         }
 
-        public int CreateBooking(string IDCard, string roomIdInput, string checkInDateInput, string checkOutDateInput, int updatedBy, string updatedByUsername)
+        private void ValidateBookingInput(
+            string idCard = null,
+            string bookingIdInput = null,
+            string roomIdInput = null,
+            string checkInDateInput = null,
+            string checkOutDateInput = null,
+            DateTime? newEndDate = null,
+            int updatedBy = 0,
+            string updatedByUsername = null,
+            bool isCreate = false,
+            bool isExtend = false)
         {
-            try
+            if (isCreate)
             {
-                // Kiểm tra các tham số đầu vào
-                if (string.IsNullOrWhiteSpace(IDCard))
+                if (string.IsNullOrWhiteSpace(idCard))
                     throw new ArgumentException("Số chứng minh nhân dân/căn cước công dân không hợp lệ.");
                 if (string.IsNullOrWhiteSpace(roomIdInput) || !int.TryParse(roomIdInput, out int roomId) || roomId <= 0)
                     throw new ArgumentException("ID phòng không hợp lệ.");
@@ -30,17 +39,35 @@ namespace HotelManagementSystem
                     throw new ArgumentException("Ngày check-in phải trước ngày check-out.");
                 if (checkInDate < DateTime.Now)
                     throw new ArgumentException("Ngày check-in không thể trước thời gian hiện tại.");
-                if (updatedBy <= 0)
-                    throw new ArgumentException("ID người dùng không hợp lệ.");
-                if (string.IsNullOrWhiteSpace(updatedByUsername))
-                    throw new ArgumentException("Tên người dùng không được để trống.");
+            }
+            else if (bookingIdInput != null)
+            {
+                if (string.IsNullOrWhiteSpace(bookingIdInput) || !int.TryParse(bookingIdInput, out int bookingId))
+                    throw new ArgumentException("ID đặt phòng không hợp lệ.");
+            }
+
+            if (isExtend && newEndDate.HasValue && newEndDate <= DateTime.Now)
+                throw new ArgumentException("Ngày gia hạn phải lớn hơn ngày hiện tại.");
+
+            if (updatedBy <= 0)
+                throw new ArgumentException("ID người dùng không hợp lệ.");
+            if (string.IsNullOrWhiteSpace(updatedByUsername))
+                throw new ArgumentException("Tên người dùng không được để trống.");
+        }
+
+        public int CreateBooking(string IDCard, string roomIdInput, string checkInDateInput, string checkOutDateInput, int updatedBy, string updatedByUsername)
+        {
+            try
+            {
+                ValidateBookingInput(IDCard, null, roomIdInput, checkInDateInput, checkOutDateInput, null, updatedBy, updatedByUsername, isCreate: true);
                 if (!CheckUserPermission(updatedBy, "manage_bookings"))
                     throw new ArgumentException("Người dùng không có quyền tạo đặt phòng.");
 
-                // Gọi tầng DAL để tạo booking và nhận BookingID
+                int roomId = int.Parse(roomIdInput);
+                DateTime checkInDate = DateTime.Parse(checkInDateInput);
+                DateTime checkOutDate = DateTime.Parse(checkOutDateInput);
                 int bookingId = _bookingDAL.CreateBooking(IDCard, roomId, checkInDate, checkOutDate, updatedBy, updatedByUsername);
 
-                // Trả về BookingID để người dùng sử dụng cho các chức năng tiếp theo
                 return bookingId;
             }
             catch (Exception ex)
@@ -53,20 +80,16 @@ namespace HotelManagementSystem
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(bookingIdInput) || !int.TryParse(bookingIdInput, out int bookingId))
-                    throw new ArgumentException("ID đặt phòng không hợp lệ.");
-                if (updatedBy <= 0)
-                    throw new ArgumentException("ID người dùng không hợp lệ.");
-                if (string.IsNullOrWhiteSpace(updatedByUsername))
-                    throw new ArgumentException("Tên người dùng không được để trống.");
+                ValidateBookingInput(bookingIdInput: bookingIdInput, updatedBy: updatedBy, updatedByUsername: updatedByUsername);
                 if (!CheckUserPermission(updatedBy, "manage_bookings"))
                     throw new ArgumentException("Người dùng không có quyền hủy đặt phòng.");
 
+                int bookingId = int.Parse(bookingIdInput);
                 _bookingDAL.CancelBooking(bookingId, updatedBy, updatedByUsername);
             }
             catch (ArgumentException ex)
             {
-                throw; // Truyền lại ArgumentException để giao diện hiển thị thông báo chính xác
+                throw;
             }
             catch (Exception ex)
             {
@@ -78,30 +101,23 @@ namespace HotelManagementSystem
         {
             try
             {
-                // Kiểm tra các tham số đầu vào
-                if (string.IsNullOrWhiteSpace(bookingIdInput) || !int.TryParse(bookingIdInput, out int bookingId))
-                    throw new ArgumentException("ID đặt phòng không hợp lệ.");
-                if (updatedBy <= 0)
-                    throw new ArgumentException("ID người dùng không hợp lệ.");
-                if (string.IsNullOrWhiteSpace(updatedByUsername))
-                    throw new ArgumentException("Tên người dùng không được để trống.");
+                ValidateBookingInput(bookingIdInput: bookingIdInput, updatedBy: updatedBy, updatedByUsername: updatedByUsername);
                 if (!CheckUserPermission(updatedBy, "manage_bookings"))
                     throw new ArgumentException("Người dùng không có quyền thực hiện check-in.");
-        
-                // Kiểm tra CheckInDate từ bảng Bookings
-                DataTable dt = _bookingDAL.GetBookingHistory(bookingId, null); // Lấy thông tin đặt phòng
+
+                int bookingId = int.Parse(bookingIdInput);
+                DataTable dt = _bookingDAL.GetBookingHistory(bookingId, null);
                 if (dt.Rows.Count == 0)
                     throw new ArgumentException("Đặt phòng không tồn tại.");
                 DateTime checkInDate = Convert.ToDateTime(dt.Rows[0]["CheckInDate"]);
                 if (checkInDate > DateTime.Now)
                     throw new ArgumentException($"Không thể check-in trước ngày {checkInDate:dd/MM/yyyy HH:mm}.");
-        
-                // Gọi tầng DAL để thực hiện check-in
+
                 _bookingDAL.CheckIn(bookingId, updatedBy, updatedByUsername);
             }
             catch (ArgumentException ex)
             {
-                throw; // Truyền lại ArgumentException để giao diện hiển thị thông báo chính xác
+                throw;
             }
             catch (Exception ex)
             {
@@ -113,22 +129,18 @@ namespace HotelManagementSystem
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(bookingIdInput) || !int.TryParse(bookingIdInput, out int bookingId))
-                    throw new ArgumentException("ID đặt phòng không hợp lệ.");
-                if (updatedBy <= 0)
-                    throw new ArgumentException("ID người dùng không hợp lệ.");
-                if (string.IsNullOrWhiteSpace(updatedByUsername))
-                    throw new ArgumentException("Tên người dùng không được để trống.");
+                ValidateBookingInput(bookingIdInput: bookingIdInput, updatedBy: updatedBy, updatedByUsername: updatedByUsername);
                 if (!CheckUserPermission(updatedBy, "manage_bookings"))
                     throw new ArgumentException("Người dùng không có quyền thực hiện check-out.");
-        
+
+                int bookingId = int.Parse(bookingIdInput);
                 DataTable dt = _bookingDAL.GetBookingHistory(bookingId, null);
                 if (dt.Rows.Count == 0)
                     throw new ArgumentException("Đặt phòng không tồn tại.");
                 string status = dt.Rows[0]["Status"].ToString();
                 if (status != "Active")
                     throw new ArgumentException("Đặt phòng không ở trạng thái Active để check-out.");
-        
+
                 _bookingDAL.CheckOut(bookingId, updatedBy, updatedByUsername);
             }
             catch (ArgumentException ex)
@@ -145,22 +157,16 @@ namespace HotelManagementSystem
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(bookingIdInput) || !int.TryParse(bookingIdInput, out int bookingId))
-                    throw new ArgumentException("ID đặt phòng không hợp lệ.");
-                if (updatedBy <= 0)
-                    throw new ArgumentException("ID người dùng không hợp lệ.");
-                if (string.IsNullOrWhiteSpace(updatedByUsername))
-                    throw new ArgumentException("Tên người dùng không được để trống.");
-                if (newEndDate <= DateTime.Now)
-                    throw new ArgumentException("Ngày gia hạn phải lớn hơn ngày hiện tại.");
+                ValidateBookingInput(bookingIdInput: bookingIdInput, newEndDate: newEndDate, updatedBy: updatedBy, updatedByUsername: updatedByUsername, isExtend: true);
                 if (!CheckUserPermission(updatedBy, "manage_bookings"))
                     throw new ArgumentException("Người dùng không có quyền gia hạn đặt phòng.");
 
+                int bookingId = int.Parse(bookingIdInput);
                 _bookingDAL.ExtendBooking(bookingId, newEndDate, updatedBy, updatedByUsername);
             }
             catch (ArgumentException ex)
             {
-                throw; // Truyền lại ArgumentException để giao diện hiển thị thông báo chính xác
+                throw;
             }
             catch (Exception ex)
             {

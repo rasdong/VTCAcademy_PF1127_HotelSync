@@ -9,7 +9,7 @@ namespace HotelManagementSystem
 
         private DataHelper()
         {
-            connectionString = "Server=localhost;Database=hotel_management;Uid=root;Pwd=123321;";
+            connectionString = "Server=localhost;Database=hotel_management;Uid=root;Pwd=@1406;";
         }
 
         public static DataHelper Instance
