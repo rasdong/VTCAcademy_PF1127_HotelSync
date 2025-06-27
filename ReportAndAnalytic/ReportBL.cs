@@ -50,6 +50,25 @@ namespace HotelManagementSystem.ReportAndAnalytic
             }
         }
 
+        // Báo cáo doanh thu theo tuần
+        public DataTable GetWeeklyRevenueReport(string weekInput)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(weekInput))
+                    throw new ArgumentException("Tuần báo cáo không được để trống.");
+
+                if (!DateTime.TryParseExact(weekInput, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime weekDate))
+                    throw new ArgumentException("Định dạng ngày không hợp lệ. Vui lòng nhập ngày đầu tuần theo định dạng dd/MM/yyyy.");
+
+                return _reportDAL.GetWeeklyRevenueReport(weekDate);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Lỗi trong logic nghiệp vụ khi tạo báo cáo doanh thu tuần: {ex.Message}");
+            }
+        }
+
         // Thống kê tỷ lệ lấp đầy phòng
         public DataTable GetOccupancyReport(string startDateInput, string endDateInput)
         {

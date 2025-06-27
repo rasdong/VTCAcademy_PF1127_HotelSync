@@ -78,6 +78,39 @@ namespace HotelManagementSystem.ReportAndAnalytic
             }
         }
 
+        // Báo cáo doanh thu theo tuần
+        public DataTable GetWeeklyRevenueReport(DateTime weekStartDate)
+        {
+            string query = @"
+                SELECT 
+                    YEARWEEK(i.IssueDate) as WeekYear,
+                    COUNT(DISTINCT i.BookingID) as TotalBookings,
+                    SUM(i.TotalAmount) as BookingRevenue,
+                    COUNT(DISTINCT su.UsageID) as ServiceUsages,
+                    IFNULL(SUM(su.TotalPrice), 0) as ServiceRevenue,
+                    (SUM(i.TotalAmount) + IFNULL(SUM(su.TotalPrice), 0)) as TotalRevenue,
+                    MIN(DATE(i.IssueDate)) as WeekStart,
+                    MAX(DATE(i.IssueDate)) as WeekEnd
+                FROM Invoices i
+                LEFT JOIN ServiceUsage su ON YEARWEEK(su.Date) = YEARWEEK(i.IssueDate)
+                WHERE i.IssueDate >= @WeekStart AND i.IssueDate < DATE_ADD(@WeekStart, INTERVAL 7 DAY)
+                GROUP BY YEARWEEK(i.IssueDate)";
+
+            using (var connection = new MySqlConnection(_connectionString))
+            {
+                using (var command = new MySqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@WeekStart", weekStartDate.Date);
+                    using (var adapter = new MySqlDataAdapter(command))
+                    {
+                        var dataTable = new DataTable();
+                        adapter.Fill(dataTable);
+                        return dataTable;
+                    }
+                }
+            }
+        }
+
         // Thống kê tỷ lệ lấp đầy phòng
         public DataTable GetOccupancyReport(DateTime startDate, DateTime endDate)
         {
