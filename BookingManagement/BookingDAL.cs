@@ -1,3 +1,4 @@
+
 using MySql.Data.MySqlClient;
 using System;
 using System.Data;
@@ -63,7 +64,7 @@ namespace HotelManagementSystem
                     catch (MySqlException ex)
                     {
                         transaction.Rollback();
-                        throw new Exception($"Lỗi khi tạo đặt phòng: {ex.Message}");
+                        throw new Exception(ex.Message); // Chỉ truyền thông báo từ stored procedure
                     }
                 }
             }
@@ -94,7 +95,7 @@ namespace HotelManagementSystem
                     catch (MySqlException ex)
                     {
                         transaction.Rollback();
-                        throw new Exception($"Lỗi khi hủy đặt phòng: {ex.Message}");
+                        throw new Exception(ex.Message);
                     }
                 }
             }
@@ -126,7 +127,7 @@ namespace HotelManagementSystem
                     catch (MySqlException ex)
                     {
                         transaction.Rollback();
-                        throw new Exception($"Lỗi khi check-in: {ex.Message}");
+                        throw new Exception(ex.Message);
                     }
                 }
             }
@@ -157,7 +158,7 @@ namespace HotelManagementSystem
                     catch (MySqlException ex)
                     {
                         transaction.Rollback();
-                        throw new Exception($"Lỗi khi check-out: {ex.Message}");
+                        throw new Exception(ex.Message);
                     }
                 }
             }
@@ -179,7 +180,7 @@ namespace HotelManagementSystem
                             Transaction = transaction
                         };
                         cmd.Parameters.AddWithValue("p_BookingID", bookingId);
-                        cmd.Parameters.AddWithValue("p_NewCheckOutDate", newCheckOutDate.Date); // Chỉ lấy ngày
+                        cmd.Parameters.AddWithValue("p_NewCheckOutDate", newCheckOutDate.Date);
                         cmd.Parameters.AddWithValue("p_UpdatedBy", updatedBy);
                         cmd.Parameters.AddWithValue("p_UpdatedByUsername", updatedByUsername);
                         cmd.ExecuteNonQuery();
@@ -189,7 +190,7 @@ namespace HotelManagementSystem
                     catch (MySqlException ex)
                     {
                         transaction.Rollback();
-                        throw new Exception($"Lỗi khi gia hạn đặt phòng: {ex.Message}");
+                        throw new Exception(ex.Message);
                     }
                 }
             }
@@ -217,7 +218,35 @@ namespace HotelManagementSystem
             }
             catch (MySqlException ex)
             {
+                // Xử lý các lỗi cụ thể từ stored procedure
+                if (ex.Message.Contains("Khách hàng không tồn tại"))
+                    throw new Exception("Khách hàng không tồn tại.");
+                if (ex.Message.Contains("Phòng không tồn tại"))
+                    throw new Exception("Phòng không tồn tại.");
                 throw new Exception($"Lỗi khi lấy lịch sử đặt phòng: {ex.Message}");
+            }
+        }
+        public DataTable CheckBookingExists(int bookingId)
+        {
+            try
+            {
+                DataTable dt = new DataTable();
+                using (MySqlConnection conn = DataHelper.Instance.GetConnection())
+                {
+                    conn.Open();
+                    MySqlCommand cmd = new MySqlCommand("checkBookingExists", conn)
+                    {
+                        CommandType = CommandType.StoredProcedure
+                    };
+                    cmd.Parameters.AddWithValue("p_BookingID", bookingId);
+                    MySqlDataReader reader = cmd.ExecuteReader();
+                    dt.Load(reader);
+                }
+                return dt;
+            }
+            catch (MySqlException ex)
+            {
+                throw new Exception(ex.Message);
             }
         }
     }

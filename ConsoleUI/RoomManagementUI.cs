@@ -115,7 +115,7 @@ namespace HotelManagementSystem
                 }
                 catch (Exception ex)
                 {
-                    ShowErrorMessage($"Lỗi: {ex.Message}");
+                    ShowErrorMessage(ex.Message);
                     Console.ReadKey();
                 }
             }
@@ -170,10 +170,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                string errorMessage = ex.Message.Contains("Số phòng đã tồn tại")
-                    ? "Lỗi: Số phòng đã tồn tại. Vui lòng chọn số phòng khác."
-                    : $"Lỗi: {ex.Message}";
-                ShowErrorMessage(errorMessage);
+                ShowErrorMessage(ex.Message);
                 Console.ReadKey();
             }
         }
@@ -243,10 +240,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                string errorMessage = ex.Message.Contains("Số phòng đã tồn tại")
-                    ? "Lỗi: Số phòng đã tồn tại. Vui lòng chọn số phòng khác."
-                    : $"Lỗi: {ex.Message}";
-                ShowErrorMessage(errorMessage);
+                ShowErrorMessage(ex.Message);
                 Console.ReadKey();
             }
         }
@@ -276,10 +270,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                string errorMessage = ex.Message.Contains("đang có đặt phòng hoạt động")
-                    ? "Lỗi: Không thể xóa phòng vì đang có đặt phòng hoạt động."
-                    : $"Lỗi: {ex.Message}";
-                ShowErrorMessage(errorMessage);
+                ShowErrorMessage(ex.Message);
                 Console.ReadKey();
             }
         }
@@ -310,7 +301,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Lỗi: {ex.Message}");
+                ShowErrorMessage(ex.Message);
                 Console.ReadKey();
                 return;
             }
@@ -398,10 +389,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                string errorMessage = ex.Message.Contains("trạng thái Uncleaned")
-                    ? "Lỗi: Chỉ có thể dọn phòng ở trạng thái Uncleaned."
-                    : $"Lỗi: {ex.Message}";
-                ShowErrorMessage(errorMessage);
+                ShowErrorMessage(ex.Message);
                 Console.ReadKey();
             }
         }
@@ -528,7 +516,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Lỗi: {ex.Message}");
+                ShowErrorMessage(ex.Message);
                 Console.ReadKey();
             }
         }
@@ -580,7 +568,6 @@ namespace HotelManagementSystem
                 Console.SetCursorPosition(x + 2, y + 5);
                 Console.Write(new string('─', width - 4));
 
-                // Định nghĩa các cột hiển thị dựa trên stored procedure checkRoomAvailability
                 string[] headers = new[] { "ID", "Số phòng", "Loại phòng", "Giá (VND)", "Trạng thái" };
                 int[] columnWidths = new int[headers.Length];
                 for (int col = 0; col < headers.Length; col++)
@@ -588,7 +575,6 @@ namespace HotelManagementSystem
                     columnWidths[col] = headers[col].Length;
                 }
 
-                // Chuẩn bị dữ liệu từ DataTable
                 string[,] roomData = new string[rooms.Rows.Count, headers.Length];
                 for (int i = 0; i < rooms.Rows.Count; i++)
                 {
@@ -603,11 +589,10 @@ namespace HotelManagementSystem
                         int length = roomData[i, col].Length;
                         if (length > columnWidths[col])
                             columnWidths[col] = length;
-                        columnWidths[col] += 2; // Thêm khoảng trống
+                        columnWidths[col] += 2;
                     }
                 }
 
-                // Hiển thị header
                 Console.SetCursorPosition(x + 2, y + 6);
                 Console.ForegroundColor = ConsoleColor.Magenta;
                 for (int col = 0; col < headers.Length; col++)
@@ -620,7 +605,6 @@ namespace HotelManagementSystem
                 Console.WriteLine(new string('─', width - 4));
                 Console.ResetColor();
 
-                // Hiển thị dữ liệu
                 for (int i = 0; i < roomData.GetLength(0); i++)
                 {
                     Console.SetCursorPosition(x + 2, y + 8 + i * 2);
@@ -642,10 +626,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                string errorMessage = ex.Message.Contains("Ngày check-in phải trước ngày check-out")
-                    ? "Lỗi: Ngày check-in phải trước ngày check-out."
-                    : $"Lỗi: {ex.Message}";
-                ShowErrorMessage(errorMessage);
+                ShowErrorMessage(ex.Message);
                 Console.ReadKey();
             }
         }

@@ -25,9 +25,9 @@ namespace HotelManagementSystem
                     var permissions = JsonSerializer.Deserialize<string[]>(permissionsJson);
                     return permissions != null && permissions.Contains(requiredPermission);
                 }
-                catch
+                catch (MySqlException ex)
                 {
-                    return false;
+                    throw new Exception(ex.Message, ex);
                 }
             }
         }
@@ -60,7 +60,7 @@ namespace HotelManagementSystem
                     catch (MySqlException ex)
                     {
                         transaction.Rollback();
-                        throw new Exception($"Lỗi khi thêm phòng: {ex.Message}");
+                        throw new Exception(ex.Message, ex);
                     }
                 }
             }
@@ -76,6 +76,12 @@ namespace HotelManagementSystem
                 {
                     try
                     {
+                        // Kiểm tra quyền trước khi xóa
+                        if (!CheckUserPermission(updatedBy, "manage_rooms"))
+                        {
+                            throw new Exception("Người dùng không có quyền xóa phòng.");
+                        }
+
                         MySqlCommand cmd = new MySqlCommand("deleteRoomWithTransaction", conn)
                         {
                             CommandType = CommandType.StoredProcedure,
@@ -91,7 +97,8 @@ namespace HotelManagementSystem
                     catch (MySqlException ex)
                     {
                         transaction.Rollback();
-                        throw new Exception($"Lỗi khi xóa phòng: {ex.Message}");
+                        // Truyền trực tiếp thông báo lỗi từ SQL
+                        throw new Exception(ex.Message, ex);
                     }
                 }
             }
@@ -127,7 +134,7 @@ namespace HotelManagementSystem
                     catch (MySqlException ex)
                     {
                         transaction.Rollback();
-                        throw new Exception($"Lỗi khi cập nhật phòng: {ex.Message}");
+                        throw new Exception(ex.Message, ex);
                     }
                 }
             }
@@ -158,7 +165,7 @@ namespace HotelManagementSystem
                     catch (MySqlException ex)
                     {
                         transaction.Rollback();
-                        throw new Exception($"Lỗi khi dọn phòng: {ex.Message}");
+                        throw new Exception(ex.Message, ex);
                     }
                 }
             }
@@ -184,7 +191,7 @@ namespace HotelManagementSystem
             }
             catch (MySqlException ex)
             {
-                throw new Exception($"Lỗi khi lấy danh sách phòng: {ex.Message}");
+                throw new Exception(ex.Message, ex);
             }
         }
 
@@ -212,7 +219,7 @@ namespace HotelManagementSystem
             }
             catch (MySqlException ex)
             {
-                throw new Exception($"Lỗi khi tìm kiếm phòng: {ex.Message}");
+                throw new Exception(ex.Message, ex);
             }
         }
 
@@ -238,7 +245,7 @@ namespace HotelManagementSystem
             }
             catch (MySqlException ex)
             {
-                throw new Exception($"Lỗi khi kiểm tra tình trạng phòng: {ex.Message}");
+                throw new Exception(ex.Message, ex);
             }
         }
     }

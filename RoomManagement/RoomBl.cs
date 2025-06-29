@@ -67,7 +67,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                throw new Exception("Lỗi trong logic nghiệp vụ khi thêm phòng: " + ex.Message);
+                throw new Exception(ex.Message, ex);
             }
         }
 
@@ -85,7 +85,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                throw new Exception("Lỗi trong logic nghiệp vụ khi cập nhật phòng: " + ex.Message);
+                throw new Exception(ex.Message, ex);
             }
         }
 
@@ -100,9 +100,14 @@ namespace HotelManagementSystem
                 int roomId = int.Parse(roomIdInput);
                 _roomDAL.DeleteRoom(roomId, updatedBy, updatedByUsername);
             }
+            catch (ArgumentException ex)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
-                throw new Exception("Lỗi trong logic nghiệp vụ khi xóa phòng: " + ex.Message);
+                // Truyền trực tiếp thông báo lỗi từ SQL
+                throw new Exception(ex.Message, ex);
             }
         }
 
@@ -119,7 +124,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                throw new Exception("Lỗi trong logic nghiệp vụ khi dọn phòng: " + ex.Message);
+                throw new Exception(ex.Message, ex);
             }
         }
 
@@ -131,7 +136,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                throw new Exception("Lỗi trong logic nghiệp vụ khi lấy danh sách phòng: " + ex.Message);
+                throw new Exception(ex.Message, ex);
             }
         }
 
@@ -150,7 +155,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                throw new Exception("Lỗi trong logic nghiệp vụ khi tìm kiếm phòng: " + ex.Message);
+                throw new Exception(ex.Message, ex);
             }
         }
 
@@ -164,7 +169,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                throw new Exception("Lỗi trong logic nghiệp vụ khi kiểm tra tình trạng phòng: " + ex.Message);
+                throw new Exception(ex.Message, ex);
             }
         }
     }

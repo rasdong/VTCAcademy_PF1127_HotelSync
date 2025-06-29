@@ -1,11 +1,14 @@
+
 using System;
 using System.Data;
+using HotelManagementSystem.InvoiceManagement; // Thêm namespace để gọi InvoiceBL
 
 namespace HotelManagementSystem
 {
     public class BookingManagementUI : BaseUI
     {
         private readonly BookingBLL _bookingBLL = new BookingBLL();
+        private readonly InvoiceBL _invoiceBL = new InvoiceBL(); // Thêm InvoiceBL
         private int? lastBookingId;
 
         public BookingManagementUI(string? username, string? role, int? userId) 
@@ -107,10 +110,21 @@ namespace HotelManagementSystem
                 }
                 catch (Exception ex)
                 {
-                    ShowErrorMessage($"Lỗi: {ex.Message}");
+                    ShowErrorMessage(CleanErrorMessage(ex.Message)); // Sử dụng hàm CleanErrorMessage
                     Console.ReadKey();
                 }
             }
+        }
+
+        private string CleanErrorMessage(string message)
+        {
+            string cleaned = message;
+            if (cleaned.Contains("Lỗi trong logic nghiệp vụ khi"))
+                cleaned = cleaned.Replace("Lỗi trong logic nghiệp vụ khi ", "");
+            if (cleaned.Contains("Lỗi khi "))
+                cleaned = cleaned.Replace("Lỗi khi ", "");
+            // Giữ nguyên thông báo từ stored procedure nếu nó không khớp với các tiền tố trên
+            return string.IsNullOrEmpty(cleaned) ? message : cleaned;
         }
 
         private void ShowCreateBooking()
@@ -164,7 +178,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Lỗi: {ex.Message}");
+                ShowErrorMessage(CleanErrorMessage(ex.Message));
                 Console.ReadKey();
             }
         }
@@ -199,7 +213,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Lỗi: {ex.Message}");
+                ShowErrorMessage(CleanErrorMessage(ex.Message));
                 Console.ReadKey();
             }
         }
@@ -239,7 +253,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Lỗi: {ex.Message}");
+                ShowErrorMessage(CleanErrorMessage(ex.Message));
                 Console.ReadKey();
             }
         }
@@ -275,29 +289,29 @@ namespace HotelManagementSystem
                 Console.ReadKey();
             }
         }
-
+        
         private void ShowExtendBooking()
         {
             Console.Clear();
             DrawHeader("Hệ Thống Quản Lý Khách Sạn - Gia Hạn Đặt Phòng");
             SetupBox(60, 12);
-
+        
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(x + 2, y + 2);
             Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
             Console.SetCursorPosition(x + 2, y + 3);
             Console.Write(new string('─', width - 4));
-
+        
             Console.SetCursorPosition(x + 2, y + 4);
             Console.Write($"ID đặt phòng { (lastBookingId.HasValue ? $"(gần nhất: {lastBookingId})" : "") } ");
             string? bookingIdInput = ReadInputWithEscape(x + 16 + (lastBookingId.HasValue ? 12 + lastBookingId.Value.ToString().Length : 0), y + 4);
             if (bookingIdInput == null) return;
-
+        
             Console.SetCursorPosition(x + 2, y + 5);
             Console.Write("Ngày gia hạn (yyyy-MM-dd): ");
             string? newEndDateInput = ReadInputWithEscape(x + 28, y + 5);
             if (newEndDateInput == null) return;
-
+        
             try
             {
                 if (string.IsNullOrEmpty(bookingIdInput) && lastBookingId.HasValue)
@@ -312,7 +326,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Lỗi: {ex.Message}");
+                ShowErrorMessage(CleanErrorMessage(ex.Message));
                 Console.ReadKey();
             }
         }
@@ -391,7 +405,7 @@ namespace HotelManagementSystem
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Lỗi: {ex.Message}");
+                ShowErrorMessage(CleanErrorMessage(ex.Message));
                 Console.ReadKey();
             }
         }

@@ -265,13 +265,45 @@ CREATE PROCEDURE getBookingHistory(
     IN p_RoomID INT
 )
 BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
+    BEGIN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi khi lấy lịch sử đặt phòng';
+    END;
+
+    START TRANSACTION;
+
+    -- Kiểm tra CustomerID tồn tại
+    IF NOT EXISTS (SELECT 1 FROM Customers WHERE CustomerID = p_CustomerID) THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Khách hàng không tồn tại';
+    END IF;
+
+    -- Kiểm tra RoomID tồn tại (nếu được cung cấp)
+    IF p_RoomID IS NOT NULL AND NOT EXISTS (SELECT 1 FROM Rooms WHERE RoomID = p_RoomID) THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Phòng không tồn tại';
+    END IF;
+
+    -- Truy vấn lịch sử đặt phòng
     SELECT BookingID, CustomerID, RoomID, CheckInDate, CheckOutDate, Status
     FROM Bookings
     WHERE CustomerID = p_CustomerID
     AND (p_RoomID IS NULL OR RoomID = p_RoomID);
+
+    COMMIT;
 END //
 DELIMITER ;
-
+DELIMITER //
+CREATE PROCEDURE checkBookingExists(
+    IN p_BookingID INT
+)
+BEGIN
+    SELECT BookingID, CustomerID, RoomID, CheckInDate, CheckOutDate, Status
+    FROM Bookings
+    WHERE BookingID = p_BookingID;
+END //
+DELIMITER ;
 -- Stored Procedure: Check Room Availability
 DELIMITER //
 CREATE PROCEDURE checkRoomAvailability(
@@ -334,25 +366,22 @@ DELIMITER ;
 
 -- Stored Procedure Transaction: Add Room
 DELIMITER //
+DELIMITER //
 CREATE PROCEDURE addRoomWithTransaction(
     IN p_RoomNumber VARCHAR(10),
     IN p_RoomType ENUM('Single', 'Double', 'Suite'),
-    IN p_Price DECIMAL(10,2),
+    IN p_Price DECIMAL(10, 2),
     IN p_Amenities JSON,
     IN p_UpdatedBy INT,
     IN p_UpdatedByUsername VARCHAR(50)
 )
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
-    BEGIN
-        ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi khi thêm phòng';
-    END;
-
     START TRANSACTION;
 
-    -- Check if RoomNumber already exists
-    IF EXISTS (SELECT 1 FROM Rooms WHERE RoomNumber = p_RoomNumber) THEN
+    -- Check if room number already exists
+    IF EXISTS (
+        SELECT 1 FROM Rooms WHERE RoomNumber = p_RoomNumber
+    ) THEN
         ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Số phòng đã tồn tại';
     END IF;
@@ -363,12 +392,13 @@ BEGIN
 
     -- Log action
     INSERT INTO Logs (UserID, Action, UpdatedByUsername)
-    VALUES (p_UpdatedBy, CONCAT('Thêm phòng mới: ', p_RoomNumber), p_UpdatedByUsername);
+    VALUES (p_UpdatedBy, CONCAT('Thêm phòng số ', p_RoomNumber), p_UpdatedByUsername);
 
     COMMIT;
 END //
 DELIMITER ;
 
+-- Stored Procedure Transaction: Delete Room
 -- Stored Procedure Transaction: Delete Room
 DELIMITER //
 CREATE PROCEDURE deleteRoomWithTransaction(
@@ -377,13 +407,15 @@ CREATE PROCEDURE deleteRoomWithTransaction(
     IN p_UpdatedByUsername VARCHAR(50)
 )
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
-    BEGIN
-        ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi khi xóa phòng';
-    END;
-
     START TRANSACTION;
+
+    -- Check if room exists
+    IF NOT EXISTS (
+        SELECT 1 FROM Rooms WHERE RoomID = p_RoomID
+    ) THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Phòng không tồn tại';
+    END IF;
 
     -- Check if room has active bookings
     IF EXISTS (
@@ -411,25 +443,26 @@ CREATE PROCEDURE updateRoomWithTransaction(
     IN p_RoomID INT,
     IN p_RoomNumber VARCHAR(10),
     IN p_RoomType ENUM('Single', 'Double', 'Suite'),
-    IN p_Price DECIMAL(10,2),
+    IN p_Price DECIMAL(10, 2),
     IN p_Amenities JSON,
-    IN p_Status ENUM('Available', 'Occupied', 'Under Maintenance'),
+    IN p_Status ENUM('Available', 'Occupied', 'Under Maintenance', 'Uncleaned'),
     IN p_UpdatedBy INT,
     IN p_UpdatedByUsername VARCHAR(50)
 )
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
-    BEGIN
-        ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi khi cập nhật phòng';
-    END;
-
     START TRANSACTION;
 
-    -- Check if RoomNumber is duplicated (excluding current room)
-    IF EXISTS (SELECT 1 FROM Rooms WHERE RoomNumber = p_RoomNumber AND RoomID != p_RoomID) THEN
+    -- Check if room exists
+    IF NOT EXISTS (
+        SELECT 1 FROM Rooms WHERE RoomID = p_RoomID
+    ) THEN
         ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Số phòng đã tồn tại';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Phòng không tồn tại';
+    END IF;
+
+    IF p_Status NOT IN ('Available', 'Occupied', 'Under Maintenance', 'Uncleaned') THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Trạng thái phòng không hợp lệ';
     END IF;
 
     -- Update room
@@ -460,15 +493,17 @@ CREATE PROCEDURE cleanRoomWithTransaction(
     IN p_UpdatedByUsername VARCHAR(50)
 )
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION 
-    BEGIN
-        ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi khi dọn phòng';
-    END;
-
     START TRANSACTION;
 
-    -- Kiểm tra trạng thái phòng phải là 'Uncleaned'
+    -- Check if room exists
+    IF NOT EXISTS (
+        SELECT 1 FROM Rooms WHERE RoomID = p_RoomID
+    ) THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Phòng không tồn tại';
+    END IF;
+
+    -- Check if room is in Uncleaned status
     IF NOT EXISTS (
         SELECT 1 FROM Rooms WHERE RoomID = p_RoomID AND Status = 'Uncleaned'
     ) THEN
@@ -476,7 +511,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Chỉ có thể dọn phòng ở trạng thái Uncleaned';
     END IF;
 
-    -- Cập nhật trạng thái phòng
+    -- Update room status to Available
     UPDATE Rooms
     SET Status = 'Available',
         UpdatedBy = p_UpdatedBy,
@@ -484,7 +519,7 @@ BEGIN
         UpdatedAt = CURRENT_TIMESTAMP
     WHERE RoomID = p_RoomID;
 
-    -- Ghi log
+    -- Log action
     INSERT INTO Logs (UserID, Action, UpdatedByUsername)
     VALUES (p_UpdatedBy, CONCAT('Dọn phòng ID ', p_RoomID), p_UpdatedByUsername);
 
@@ -492,8 +527,6 @@ BEGIN
 END //
 DELIMITER ;
 
-
--- Stored Procedure Transaction: Create Booking
 DELIMITER //
 CREATE PROCEDURE createBookingWithTransaction(
     IN p_IDCard VARCHAR(20),
@@ -508,8 +541,8 @@ BEGIN
     DECLARE v_CustomerID INT;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION 
     BEGIN
-        ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi khi tạo đặt phòng';
+        ROLLBACK;
     END;
 
     START TRANSACTION;
@@ -576,8 +609,8 @@ BEGIN
     DECLARE v_rowsAffected INT;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION 
     BEGIN
-        ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi khi hủy đặt phòng';
+        ROLLBACK;
     END;
 
     START TRANSACTION;
@@ -620,7 +653,7 @@ BEGIN
 END //
 DELIMITER ;
 
--- Check-in with ID Card verification (Enhanced Security)
+-- Stored Procedure Transaction: Check-in
 DELIMITER //
 CREATE PROCEDURE checkInWithIDVerification(
     IN p_BookingID INT,
@@ -694,9 +727,8 @@ BEGIN
 END //
 DELIMITER ;
 
-	-- Stored Procedure Transaction: Check-out
-
-	DELIMITER //
+-- Stored Procedure Transaction: Check-out
+DELIMITER //
 CREATE PROCEDURE checkOutWithTransaction(
     IN p_BookingID INT,
     IN p_UpdatedBy INT,
@@ -707,19 +739,22 @@ BEGIN
     DECLARE v_rowsAffected INT;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION 
     BEGIN
-        ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi khi check-out';
+        ROLLBACK;
     END;
 
     START TRANSACTION;
 
+    -- Check if booking exists and is valid
     IF NOT EXISTS (SELECT 1 FROM Bookings WHERE BookingID = p_BookingID AND Status = 'Active') THEN
         ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đặt phòng không tồn tại hoặc không hợp lệ để check-out';
     END IF;
 
+    -- Get RoomID
     SELECT RoomID INTO v_RoomID FROM Bookings WHERE BookingID = p_BookingID;
 
+    -- Update booking
     UPDATE Bookings
     SET Status = 'Completed',
         UpdatedBy = p_UpdatedBy,
@@ -732,6 +767,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Check-out thất bại: Không tìm thấy hoặc không cập nhật được bản ghi';
     END IF;
 
+    -- Update room status
     UPDATE Rooms
     SET Status = 'Uncleaned',
         UpdatedBy = p_UpdatedBy,
@@ -744,6 +780,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Check-out thất bại: Không tìm thấy phòng để cập nhật';
     END IF;
 
+    -- Log action
     INSERT INTO Logs (UserID, Action, UpdatedByUsername)
     VALUES (p_UpdatedBy, CONCAT('Check-out đặt phòng ID ', p_BookingID), p_UpdatedByUsername);
 
@@ -755,50 +792,50 @@ DELIMITER ;
 DELIMITER //
 CREATE PROCEDURE extendBookingWithTransaction(
     IN p_BookingID INT,
-    IN p_NewCheckOutDate DATE,
+    IN p_NewCheckOutDate DATETIME,
     IN p_UpdatedBy INT,
     IN p_UpdatedByUsername VARCHAR(50)
 )
 BEGIN
     DECLARE v_RoomID INT;
-    DECLARE v_CurrentCheckOutDate DATE;
+    DECLARE v_CheckOutDate DATETIME;
     DECLARE v_rowsAffected INT;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION 
     BEGIN
-        ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Lỗi khi gia hạn đặt phòng';
+        ROLLBACK;
     END;
- 
+
     START TRANSACTION;
- 
-    -- Kiểm tra đặt phòng tồn tại và ở trạng thái Active
+
+    -- Check if booking exists and is valid
     IF NOT EXISTS (SELECT 1 FROM Bookings WHERE BookingID = p_BookingID AND Status = 'Active') THEN
         ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đặt phòng không tồn tại hoặc không hợp lệ để gia hạn';
     END IF;
- 
-    -- Lấy RoomID và CheckOutDate hiện tại
-    SELECT RoomID, CheckOutDate INTO v_RoomID, v_CurrentCheckOutDate
+
+    -- Get RoomID and current CheckOutDate
+    SELECT RoomID, CheckOutDate INTO v_RoomID, v_CheckOutDate
     FROM Bookings WHERE BookingID = p_BookingID;
- 
-    -- Kiểm tra ngày gia hạn hợp lệ
-    IF p_NewCheckOutDate <= v_CurrentCheckOutDate THEN
+
+    -- Check if new check-out date is valid
+    IF p_NewCheckOutDate <= v_CheckOutDate THEN
         ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ngày gia hạn phải lớn hơn ngày kết thúc hiện tại';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ngày check-out mới phải lớn hơn ngày check-out hiện tại';
     END IF;
- 
-    -- Kiểm tra xung đột với các đặt phòng khác
+
+    -- Check for conflicting bookings
     IF EXISTS (
         SELECT 1 FROM Bookings
         WHERE RoomID = v_RoomID AND Status = 'Active'
         AND BookingID != p_BookingID
-        AND CheckInDate <= p_NewCheckOutDate AND CheckOutDate >= CURDATE()
+        AND (CheckInDate <= p_NewCheckOutDate AND CheckOutDate > v_CheckOutDate)
     ) THEN
         ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Phòng đã được đặt trong khoảng thời gian gia hạn';
     END IF;
- 
-    -- Cập nhật ngày CheckOutDate
+
+    -- Update booking
     UPDATE Bookings
     SET CheckOutDate = p_NewCheckOutDate,
         UpdatedBy = p_UpdatedBy,
@@ -810,11 +847,11 @@ BEGIN
         ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Gia hạn đặt phòng thất bại do không ảnh hưởng dòng nào';
     END IF;
- 
-    -- Ghi log hành động
+
+    -- Log action
     INSERT INTO Logs (UserID, Action, UpdatedByUsername)
     VALUES (p_UpdatedBy, CONCAT('Gia hạn đặt phòng ID ', p_BookingID, ' đến ', p_NewCheckOutDate), p_UpdatedByUsername);
- 
+
     COMMIT;
 END //
 DELIMITER ;
@@ -951,7 +988,7 @@ INSERT INTO Staff (Name, Role, Phone, UpdatedBy, UpdatedByUsername) VALUES
 
 -- Insert sample active booking for Room 202
 INSERT INTO Bookings (CustomerID, IDCard, RoomID, CheckInDate, CheckOutDate, Status, UpdatedBy, UpdatedByUsername) VALUES
-(1, '123456789', 4, '2024-12-01 14:00:00', '2024-12-05 12:00:00', 'Active', 1, 'admin');
+(1, '123456789', 4, '2024-12-01 14:00:00', '2025-07-04 21:30:00', 'Active', 1, 'admin');
 
 -- Additional Customer Management Procedures
 DELIMITER //
@@ -1233,13 +1270,10 @@ CREATE PROCEDURE getServiceUsageByBooking(
     IN p_BookingID INT
 )
 BEGIN
-    SELECT su.UsageID, s.ServiceName, su.Quantity, s.Price as UnitPrice, 
-           su.TotalPrice, su.Date, su.PaymentStatus
+    SELECT su.UsageID, s.ServiceName, su.Quantity, su.Date, su.TotalPrice, su.PaymentStatus
     FROM ServiceUsage su
     JOIN Services s ON su.ServiceID = s.ServiceID
-    JOIN Bookings b ON su.BookingID = b.BookingID
-    JOIN Invoices i ON i.BookingID = b.BookingID
-    WHERE i.InvoiceID = p_InvoiceID;
+    WHERE su.BookingID = p_BookingID;
 END //
 DELIMITER ;
 
@@ -1280,382 +1314,5 @@ BEGIN
     ORDER BY Date;
 END //
 DELIMITER ;
-
--- =============================================
--- STORED PROCEDURES BỔ SUNG - HOÀN THIỆN CLONE.SQL
--- =============================================
-
--- 1. Room Management - Basic procedures
-DELIMITER //
-CREATE PROCEDURE addRoom(
-    IN p_RoomNumber VARCHAR(10),
-    IN p_RoomType VARCHAR(50),
-    IN p_Price DECIMAL(10,2),
-    IN p_Status VARCHAR(20),
-    IN p_UpdatedBy INT,
-    IN p_UpdatedByUsername VARCHAR(50)
-)
-BEGIN
-    INSERT INTO Rooms (RoomNumber, RoomType, Price, Status, UpdatedBy, UpdatedByUsername)
-    VALUES (p_RoomNumber, p_RoomType, p_Price, p_Status, p_UpdatedBy, p_UpdatedByUsername);
-END //
-DELIMITER ;
-
-DELIMITER //
-CREATE PROCEDURE cleanRoom(
-    IN p_RoomID INT,
-    IN p_UpdatedBy INT,
-    IN p_UpdatedByUsername VARCHAR(50)
-)
-BEGIN
-    UPDATE Rooms 
-    SET Status = 'Available',
-        UpdatedBy = p_UpdatedBy,
-        UpdatedByUsername = p_UpdatedByUsername,
-        UpdatedAt = CURRENT_TIMESTAMP
-    WHERE RoomID = p_RoomID;
-    
-    INSERT INTO Logs (UserID, Action, UpdatedByUsername)
-    VALUES (p_UpdatedBy, CONCAT('Dọn phòng ID ', p_RoomID), p_UpdatedByUsername);
-END //
-DELIMITER ;
-
-DELIMITER //
-CREATE PROCEDURE deleteRoom(
-    IN p_RoomID INT,
-    IN p_UpdatedBy INT,
-    IN p_UpdatedByUsername VARCHAR(50)
-)
-BEGIN
-    DELETE FROM Rooms WHERE RoomID = p_RoomID;
-    
-    INSERT INTO Logs (UserID, Action, UpdatedByUsername)
-    VALUES (p_UpdatedBy, CONCAT('Xóa phòng ID ', p_RoomID), p_UpdatedByUsername);
-END //
-DELIMITER ;
-
-DELIMITER //
-CREATE PROCEDURE updateRoom(
-    IN p_RoomID INT,
-    IN p_RoomNumber VARCHAR(10),
-    IN p_RoomType VARCHAR(50),
-    IN p_Price DECIMAL(10,2),
-    IN p_Status VARCHAR(20),
-    IN p_UpdatedBy INT,
-    IN p_UpdatedByUsername VARCHAR(50)
-)
-BEGIN
-    UPDATE Rooms 
-    SET RoomNumber = p_RoomNumber,
-        RoomType = p_RoomType,
-        Price = p_Price,
-        Status = p_Status,
-        UpdatedBy = p_UpdatedBy,
-        UpdatedByUsername = p_UpdatedByUsername,
-        UpdatedAt = CURRENT_TIMESTAMP
-    WHERE RoomID = p_RoomID;
-    
-    INSERT INTO Logs (UserID, Action, UpdatedByUsername)
-    VALUES (p_UpdatedBy, CONCAT('Cập nhật phòng ID ', p_RoomID), p_UpdatedByUsername);
-END //
-DELIMITER ;
-
--- 2. Customer Management - Advanced procedures
-DELIMITER //
-CREATE PROCEDURE deleteCustomerWithTransaction(
-    IN p_CustomerID INT,
-    IN p_UpdatedBy INT,
-    IN p_UpdatedByUsername VARCHAR(50)
-)
-BEGIN
-    DECLARE v_BookingCount INT DEFAULT 0;
-    DECLARE v_ActiveBookingCount INT DEFAULT 0;
-    DECLARE v_Error VARCHAR(255) DEFAULT '';
-    
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        RESIGNAL;
-    END;
-    
-    START TRANSACTION;
-    
-    -- Kiểm tra xem khách hàng có booking nào không
-    SELECT COUNT(*) INTO v_BookingCount
-    FROM Bookings
-    WHERE CustomerID = p_CustomerID;
-    
-    -- Kiểm tra xem khách hàng có booking đang hoạt động không
-    SELECT COUNT(*) INTO v_ActiveBookingCount
-    FROM Bookings
-    WHERE CustomerID = p_CustomerID 
-    AND Status IN ('Active', 'Confirmed');
-    
-    -- Nếu có booking đang hoạt động, không cho phép xóa
-    IF v_ActiveBookingCount > 0 THEN
-        SET v_Error = CONCAT('Không thể xóa khách hàng có booking đang hoạt động. Số booking đang hoạt động: ', v_ActiveBookingCount);
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = v_Error;
-    END IF;
-    
-    -- Nếu có booking đã hoàn thành, cập nhật thành NULL thay vì xóa
-    IF v_BookingCount > 0 THEN
-        UPDATE Bookings 
-        SET CustomerID = NULL,
-            UpdatedBy = p_UpdatedBy,
-            UpdatedByUsername = p_UpdatedByUsername,
-            UpdatedAt = CURRENT_TIMESTAMP
-        WHERE CustomerID = p_CustomerID;
-        
-        -- Cập nhật Invoice
-        UPDATE Invoices 
-        SET CustomerID = NULL,
-            UpdatedBy = p_UpdatedBy,
-            UpdatedByUsername = p_UpdatedByUsername,
-            UpdatedAt = CURRENT_TIMESTAMP
-        WHERE CustomerID = p_CustomerID;
-    END IF;
-    
-    -- Xóa khách hàng
-    DELETE FROM Customers WHERE CustomerID = p_CustomerID;
-    
-    -- Ghi log
-    INSERT INTO Logs (UserID, Action, UpdatedByUsername)
-    VALUES (p_UpdatedBy, CONCAT('Xóa khách hàng ID ', p_CustomerID, ' với ', v_BookingCount, ' booking(s)'), p_UpdatedByUsername);
-    
-    COMMIT;
-END //
-DELIMITER ;
-
--- 3. Invoice Management - Advanced procedures
-DELIMITER //
-CREATE PROCEDURE searchInvoices(
-    IN p_CustomerName VARCHAR(100),
-    IN p_StartDate DATE,
-    IN p_EndDate DATE,
-    IN p_PaymentStatus VARCHAR(20),
-    IN p_MinAmount DECIMAL(10,2),
-    IN p_MaxAmount DECIMAL(10,2)
-)
-BEGIN
-    SELECT 
-        i.InvoiceID, i.BookingID, i.CustomerID,
-        c.Name as CustomerName, c.IDCard, c.PhoneNumber,
-        i.TotalAmount, i.PaymentStatus, i.IssueDate,
-        i.UpdatedBy, i.UpdatedByUsername, i.UpdatedAt
-    FROM Invoices i
-    LEFT JOIN Customers c ON i.CustomerID = c.CustomerID
-    WHERE (p_CustomerName IS NULL OR c.Name LIKE CONCAT('%', p_CustomerName, '%'))
-    AND (p_StartDate IS NULL OR DATE(i.IssueDate) >= p_StartDate)
-    AND (p_EndDate IS NULL OR DATE(i.IssueDate) <= p_EndDate)
-    AND (p_PaymentStatus IS NULL OR i.PaymentStatus = p_PaymentStatus)
-    AND (p_MinAmount IS NULL OR i.TotalAmount >= p_MinAmount)
-    AND (p_MaxAmount IS NULL OR i.TotalAmount <= p_MaxAmount)
-    ORDER BY i.IssueDate DESC;
-END //
-DELIMITER ;
-
-DELIMITER //
-CREATE PROCEDURE printInvoice(
-    IN p_InvoiceID INT
-)
-BEGIN
-    -- Thông tin hóa đơn chính
-    SELECT 
-        i.InvoiceID, i.BookingID, i.TotalAmount, i.PaymentStatus, i.IssueDate,
-        c.Name as CustomerName, c.IDCard, c.PhoneNumber, c.Address, c.Nationality,
-        r.RoomNumber, r.RoomType, r.Price as RoomPrice,
-        b.CheckInDate, b.CheckOutDate, b.Status as BookingStatus,
-        DATEDIFF(b.CheckOutDate, b.CheckInDate) as StayDays,
-        (DATEDIFF(b.CheckOutDate, b.CheckInDate) * r.Price) as RoomCost
-    FROM Invoices i
-    LEFT JOIN Customers c ON i.CustomerID = c.CustomerID
-    LEFT JOIN Bookings b ON i.BookingID = b.BookingID
-    LEFT JOIN Rooms r ON b.RoomID = r.RoomID
-    WHERE i.InvoiceID = p_InvoiceID;
-    
-    -- Chi tiết dịch vụ sử dụng
-    SELECT s.ServiceName, su.Quantity, s.Price as UnitPrice, 
-           su.TotalPrice, su.Date, su.PaymentStatus
-    FROM ServiceUsage su
-    JOIN Services s ON su.ServiceID = s.ServiceID
-    JOIN Bookings b ON su.BookingID = b.BookingID
-    JOIN Invoices i ON i.BookingID = b.BookingID
-    WHERE i.InvoiceID = p_InvoiceID;
-END //
-DELIMITER ;
-
-DELIMITER //
-CREATE PROCEDURE calculateInvoiceAmount(
-    IN p_BookingID INT,
-    OUT p_TotalAmount DECIMAL(10,2)
-)
-BEGIN
-    DECLARE v_RoomCost DECIMAL(10,2) DEFAULT 0;
-    DECLARE v_ServiceCost DECIMAL(10,2) DEFAULT 0;
-    
-    -- Calculate room cost
-    SELECT (DATEDIFF(b.CheckOutDate, b.CheckInDate) * r.Price) INTO v_RoomCost
-    FROM Bookings b
-    JOIN Rooms r ON b.RoomID = r.RoomID
-    WHERE b.BookingID = p_BookingID;
-    
-    -- Calculate service cost
-    SELECT COALESCE(SUM(TotalPrice), 0) INTO v_ServiceCost
-    FROM ServiceUsage
-    WHERE BookingID = p_BookingID;
-    
-    SET p_TotalAmount = v_RoomCost + v_ServiceCost;
-END //
-DELIMITER ;
-
-DELIMITER //
-CREATE PROCEDURE createInvoiceWithCalculation(
-    IN p_BookingID INT,
-    IN p_CustomerID INT,
-    IN p_UpdatedBy INT,
-    IN p_UpdatedByUsername VARCHAR(50),
-    OUT p_InvoiceID INT
-)
-BEGIN
-    DECLARE v_TotalAmount DECIMAL(10,2);
-    
-    -- Calculate total amount
-    CALL calculateInvoiceAmount(p_BookingID, v_TotalAmount);
-    
-    -- Create invoice
-    INSERT INTO Invoices (BookingID, CustomerID, TotalAmount, UpdatedBy, UpdatedByUsername)
-    VALUES (p_BookingID, p_CustomerID, v_TotalAmount, p_UpdatedBy, p_UpdatedByUsername);
-    
-    SET p_InvoiceID = LAST_INSERT_ID();
-END //
-DELIMITER ;
-
--- 4. Staff Management - Advanced procedures
-DELIMITER //
-CREATE PROCEDURE assignStaffToTask(
-    IN p_StaffID INT,
-    IN p_TaskType VARCHAR(50), -- 'cleaning', 'maintenance', 'service'
-    IN p_RoomID INT,
-    IN p_BookingID INT,
-    IN p_AssignedBy INT,
-    IN p_AssignedByUsername VARCHAR(50)
-)
-BEGIN
-    -- Create a simple task assignment log
-    INSERT INTO Logs (UserID, Action, UpdatedByUsername)
-    VALUES (p_AssignedBy, 
-            CONCAT('Gán nhân viên ID ', p_StaffID, ' làm ', p_TaskType, 
-                   CASE 
-                       WHEN p_RoomID IS NOT NULL THEN CONCAT(' cho phòng ID ', p_RoomID)
-                       WHEN p_BookingID IS NOT NULL THEN CONCAT(' cho booking ID ', p_BookingID)
-                       ELSE ''
-                   END), 
-            p_AssignedByUsername);
-            
-    -- Update room status if it's a cleaning task
-    IF p_TaskType = 'cleaning' AND p_RoomID IS NOT NULL THEN
-        UPDATE Rooms 
-        SET Status = 'Under Maintenance',
-            UpdatedBy = p_AssignedBy,
-            UpdatedByUsername = p_AssignedByUsername,
-            UpdatedAt = CURRENT_TIMESTAMP
-        WHERE RoomID = p_RoomID;
-    END IF;
-END //
-DELIMITER ;
-
--- 5. Reporting - Customer statistics
-DELIMITER //
-CREATE PROCEDURE getCustomerReport(
-    IN p_StartDate DATE,
-    IN p_EndDate DATE
-)
-BEGIN
-    -- Customer statistics by nationality
-    SELECT 
-        c.Nationality,
-        COUNT(DISTINCT c.CustomerID) as TotalCustomers,
-        COUNT(b.BookingID) as TotalBookings,
-        SUM(CASE WHEN b.Status = 'Completed' THEN 1 ELSE 0 END) as CompletedBookings,
-        AVG(DATEDIFF(b.CheckOutDate, b.CheckInDate)) as AvgStayDays
-    FROM Customers c
-    LEFT JOIN Bookings b ON c.CustomerID = b.CustomerID
-    WHERE (p_StartDate IS NULL OR DATE(b.CheckInDate) >= p_StartDate)
-    AND (p_EndDate IS NULL OR DATE(b.CheckInDate) <= p_EndDate)
-    GROUP BY c.Nationality
-    ORDER BY TotalBookings DESC;
-
-    -- Returning customers (customers with more than 1 booking)
-    SELECT 
-        c.CustomerID, c.Name, c.IDCard, c.Nationality,
-        COUNT(b.BookingID) as BookingCount,
-        MIN(b.CheckInDate) as FirstVisit,
-        MAX(b.CheckInDate) as LastVisit
-    FROM Customers c
-    JOIN Bookings b ON c.CustomerID = b.CustomerID
-    WHERE (p_StartDate IS NULL OR DATE(b.CheckInDate) >= p_StartDate)
-    AND (p_EndDate IS NULL OR DATE(b.CheckInDate) <= p_EndDate)
-    GROUP BY c.CustomerID, c.Name, c.IDCard, c.Nationality
-    HAVING COUNT(b.BookingID) > 1
-    ORDER BY BookingCount DESC;
-END //
-DELIMITER ;
-
--- 6. Reporting - Service usage statistics
-DELIMITER //
-CREATE PROCEDURE getServiceReport(
-    IN p_StartDate DATE,
-    IN p_EndDate DATE
-)
-BEGIN
-    -- Most used services
-    SELECT 
-        s.ServiceID, s.ServiceName, s.Type,
-        COUNT(su.UsageID) as UsageCount,
-        SUM(su.Quantity) as TotalQuantity,
-        SUM(su.TotalPrice) as TotalRevenue,
-        AVG(su.TotalPrice) as AvgRevenuePerUsage
-    FROM Services s
-    LEFT JOIN ServiceUsage su ON s.ServiceID = su.ServiceID
-    WHERE (p_StartDate IS NULL OR su.Date >= p_StartDate)
-    AND (p_EndDate IS NULL OR su.Date <= p_EndDate)
-    GROUP BY s.ServiceID, s.ServiceName, s.Type
-    ORDER BY TotalRevenue DESC;
-
-    -- Service revenue by type
-    SELECT 
-        s.Type,
-        COUNT(su.UsageID) as UsageCount,
-        SUM(su.TotalPrice) as TotalRevenue,
-        AVG(su.TotalPrice) as AvgRevenue
-    FROM Services s
-    LEFT JOIN ServiceUsage su ON s.ServiceID = su.ServiceID
-    WHERE (p_StartDate IS NULL OR su.Date >= p_StartDate)
-    AND (p_EndDate IS NULL OR su.Date <= p_EndDate)
-    GROUP BY s.Type
-    ORDER BY TotalRevenue DESC;
-END //
-DELIMITER ;
-
--- 7. Dashboard and Summary
-DELIMITER //
-CREATE PROCEDURE getDashboardSummary()
-BEGIN
-    SELECT 
-        (SELECT COUNT(*) FROM Rooms) as TotalRooms,
-        (SELECT COUNT(*) FROM Rooms WHERE Status = 'Available') as AvailableRooms,
-        (SELECT COUNT(*) FROM Rooms WHERE Status = 'Occupied') as OccupiedRooms,
-        (SELECT COUNT(*) FROM Rooms WHERE Status = 'Under Maintenance') as MaintenanceRooms,
-        (SELECT COUNT(*) FROM Bookings WHERE Status = 'Active') as ActiveBookings,
-        (SELECT COUNT(*) FROM Bookings WHERE DATE(CheckInDate) = CURDATE()) as TodayCheckIns,
-        (SELECT COUNT(*) FROM Bookings WHERE DATE(CheckOutDate) = CURDATE()) as TodayCheckOuts,
-        (SELECT COUNT(*) FROM Customers) as TotalCustomers,
-        (SELECT COALESCE(SUM(TotalAmount), 0) FROM Invoices WHERE PaymentStatus = 'Paid' AND DATE(IssueDate) = CURDATE()) as TodayRevenue,
-        (SELECT COALESCE(SUM(TotalAmount), 0) FROM Invoices WHERE PaymentStatus = 'Unpaid') as PendingPayments;
-END //
-DELIMITER ;
-
--- =============================================
--- KẾT THÚC BỔ SUNG STORED PROCEDURES
--- =============================================
-
+SELECT * FROM Bookings  ;
+SELECT * FROM Rooms  ;

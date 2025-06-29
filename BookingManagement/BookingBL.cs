@@ -1,3 +1,4 @@
+
 using System;
 using System.Data;
 
@@ -60,13 +61,11 @@ namespace HotelManagementSystem
                 int roomId = int.Parse(roomIdInput);
                 DateTime checkInDate = DateTime.Parse(checkInDateInput);
                 DateTime checkOutDate = DateTime.Parse(checkOutDateInput);
-                int bookingId = _bookingDAL.CreateBooking(IDCard, roomId, checkInDate, checkOutDate, updatedBy, updatedByUsername);
-
-                return bookingId;
+                return _bookingDAL.CreateBooking(IDCard, roomId, checkInDate, checkOutDate, updatedBy, updatedByUsername);
             }
             catch (Exception ex)
             {
-                throw new Exception($"Lỗi trong logic nghiệp vụ khi tạo đặt phòng: {ex.Message}");
+                throw new Exception(ex.Message); // Chỉ truyền thông báo từ DAL
             }
         }
 
@@ -81,13 +80,9 @@ namespace HotelManagementSystem
                 int bookingId = int.Parse(bookingIdInput);
                 _bookingDAL.CancelBooking(bookingId, updatedBy, updatedByUsername);
             }
-            catch (ArgumentException ex)
-            {
-                throw;
-            }
             catch (Exception ex)
             {
-                throw new Exception($"Không thể hủy đặt phòng: {ex.Message}");
+                throw new Exception(ex.Message);
             }
         }
 
@@ -98,15 +93,15 @@ namespace HotelManagementSystem
                 ValidateBookingInput(bookingIdInput: bookingIdInput, idCard: IDCard, updatedBy: updatedBy, updatedByUsername: updatedByUsername);
                 if (!_bookingDAL.CheckUserPermission(updatedBy, "manage_bookings"))
                     throw new ArgumentException("Người dùng không có quyền thực hiện check-in.");
-
+        
                 int bookingId = int.Parse(bookingIdInput);
-                DataTable dt = _bookingDAL.GetBookingHistory(bookingId, null);
+                DataTable dt = _bookingDAL.CheckBookingExists(bookingId);
                 if (dt.Rows.Count == 0)
                     throw new ArgumentException("Đặt phòng không tồn tại.");
                 DateTime checkInDate = Convert.ToDateTime(dt.Rows[0]["CheckInDate"]);
                 if (checkInDate > DateTime.Now)
                     throw new ArgumentException($"Không thể check-in trước ngày {checkInDate:dd/MM/yyyy HH:mm}.");
-
+        
                 _bookingDAL.CheckIn(bookingId, IDCard, updatedBy, updatedByUsername);
             }
             catch (ArgumentException ex)
@@ -118,7 +113,7 @@ namespace HotelManagementSystem
                 throw new Exception($"Lỗi trong logic nghiệp vụ khi check-in: {ex.Message}");
             }
         }
-
+        
         public void CheckOut(string bookingIdInput, int updatedBy, string updatedByUsername)
         {
             try
@@ -126,12 +121,12 @@ namespace HotelManagementSystem
                 ValidateBookingInput(bookingIdInput: bookingIdInput, updatedBy: updatedBy, updatedByUsername: updatedByUsername);
                 if (!_bookingDAL.CheckUserPermission(updatedBy, "manage_bookings"))
                     throw new ArgumentException("Người dùng không có quyền thực hiện check-out.");
-
+        
                 int bookingId = int.Parse(bookingIdInput);
-                DataTable dt = _bookingDAL.GetBookingHistory(bookingId, null);
+                DataTable dt = _bookingDAL.CheckBookingExists(bookingId);
                 if (dt.Rows.Count == 0)
                     throw new ArgumentException("Đặt phòng không tồn tại.");
-
+        
                 _bookingDAL.CheckOut(bookingId, updatedBy, updatedByUsername);
             }
             catch (ArgumentException ex)
@@ -155,13 +150,9 @@ namespace HotelManagementSystem
                 int bookingId = int.Parse(bookingIdInput);
                 _bookingDAL.ExtendBooking(bookingId, newCheckOutDate, updatedBy, updatedByUsername);
             }
-            catch (ArgumentException ex)
-            {
-                throw;
-            }
             catch (Exception ex)
             {
-                throw new Exception($"Không thể gia hạn đặt phòng: {ex.Message}");
+                throw new Exception(ex.Message);
             }
         }
 
@@ -169,12 +160,20 @@ namespace HotelManagementSystem
         {
             try
             {
+                // Kiểm tra đầu vào
                 if (customerId <= 0)
                     throw new ArgumentException("ID khách hàng không hợp lệ.");
+        
+                // Gọi tầng DAL
                 return _bookingDAL.GetBookingHistory(customerId, roomId);
             }
             catch (Exception ex)
             {
+                // Xử lý lỗi cụ thể từ DAL
+                if (ex.Message.Contains("Khách hàng không tồn tại"))
+                    throw new ArgumentException("Khách hàng không tồn tại.");
+                if (ex.Message.Contains("Phòng không tồn tại"))
+                    throw new ArgumentException("Phòng không tồn tại.");
                 throw new Exception($"Lỗi trong logic nghiệp vụ khi lấy lịch sử đặt phòng: {ex.Message}");
             }
         }
