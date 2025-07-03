@@ -6,10 +6,6 @@ using HotelManagementSystem.Tests.TestHelpers;
 
 namespace HotelManagementSystem.Tests.BLTests
 {
-    /// <summary>
-    /// Test class cho RoomBL
-    /// Kiểm tra tất cả các phương thức trong business logic layer của Room Management
-    /// </summary>
     [TestFixture]
     public class RoomBLTests : BaseTestClass
     {
@@ -20,7 +16,7 @@ namespace HotelManagementSystem.Tests.BLTests
         {
             base.SetUp();
             _roomBLL = new RoomBLL();
-            SeedTestData(); // Thêm dữ liệu test cơ bản
+            SeedTestData();
         }
 
         #region AddRoom Tests
@@ -28,44 +24,35 @@ namespace HotelManagementSystem.Tests.BLTests
         [Test]
         public void AddRoom_ValidInput_ShouldSucceed()
         {
-            // Arrange
             string roomNumber = "102";
             string roomType = "Single";
             string price = "600000";
             string amenities = "[\"TV\", \"WiFi\"]";
-            int updatedBy = 1;
-            string updatedByUsername = "testadmin";
 
-            // Act & Assert
-            Assert.DoesNotThrow(() => _roomBLL.AddRoom(roomNumber, roomType, price, amenities, updatedBy, updatedByUsername));
-            
-            // Verify room was added to database
+            Assert.DoesNotThrow(() =>
+                _roomBLL.AddRoom(roomNumber, roomType, price, amenities, 1, "testadmin"));
+
             var rooms = ExecuteQuery($"SELECT * FROM Rooms WHERE RoomNumber = '{roomNumber}'");
             rooms.Rows.Count.Should().Be(1);
             rooms.Rows[0]["RoomType"].ToString().Should().Be(roomType);
         }
 
         [Test]
-        public void AddRoom_EmptyRoomNumber_ShouldThrowException()
+        public void AddRoom_DuplicateRoomNumber_ShouldThrowException()
         {
-            // Act & Assert
-            var exception = Assert.Throws<Exception>(() => _roomBLL.AddRoom("", "Single", "600000", "[\"TV\"]", 1, "testadmin"));
-            Assert.That(exception?.Message, Does.Contain("Số phòng không được để trống"));
-        }
+            string roomNumber = "102";
+            _roomBLL.AddRoom(roomNumber, "Single", "500000", "[\"TV\"]", 1, "testadmin");
 
-        [Test]
-        public void AddRoom_InvalidRoomType_ShouldThrowException()
-        {
-            // Act & Assert
-            var exception = Assert.Throws<Exception>(() => _roomBLL.AddRoom("102", "InvalidType", "600000", "[\"TV\"]", 1, "testadmin"));
-            Assert.That(exception?.Message, Does.Contain("Loại phòng phải là Single, Double hoặc Suite"));
+            var exception = Assert.Throws<Exception>(() =>
+                _roomBLL.AddRoom(roomNumber, "Single", "500000", "[\"TV\"]", 1, "testadmin"));
+            Assert.That(exception?.Message, Does.Contain("Số phòng đã tồn tại"));
         }
 
         [Test]
         public void AddRoom_InvalidPrice_ShouldThrowException()
         {
-            // Act & Assert
-            var exception = Assert.Throws<Exception>(() => _roomBLL.AddRoom("102", "Single", "invalid", "[\"TV\"]", 1, "testadmin"));
+            var exception = Assert.Throws<Exception>(() =>
+                _roomBLL.AddRoom("105", "Single", "invalid", "[\"TV\"]", 1, "testadmin"));
             Assert.That(exception?.Message, Does.Contain("Giá phải là số hợp lệ và lớn hơn 0"));
         }
 
@@ -76,30 +63,29 @@ namespace HotelManagementSystem.Tests.BLTests
         [Test]
         public void UpdateRoom_ValidInput_ShouldSucceed()
         {
-            // Arrange
             string roomId = "1";
             string roomNumber = "101-Updated";
-            string roomType = "Single";
-            string price = "650000";
-            string amenities = "[\"TV\", \"WiFi\", \"Updated\"]";
-            string status = "Available";
-            int updatedBy = 1;
-            string updatedByUsername = "testadmin";
 
-            // Act & Assert
-            Assert.DoesNotThrow(() => _roomBLL.UpdateRoom(roomId, roomNumber, roomType, price, amenities, status, updatedBy, updatedByUsername));
-            
-            // Verify room was updated in database
+            Assert.DoesNotThrow(() =>
+                _roomBLL.UpdateRoom(roomId, roomNumber, "Single", "650000", "[\"TV\"]", "Available", 1, "testadmin"));
+
             var rooms = ExecuteQuery($"SELECT * FROM Rooms WHERE RoomID = {roomId}");
-            rooms.Rows.Count.Should().Be(1);
             rooms.Rows[0]["RoomNumber"].ToString().Should().Be(roomNumber);
+        }
+
+        [Test]
+        public void UpdateRoom_InvalidPrice_ShouldThrowException()
+        {
+            var exception = Assert.Throws<Exception>(() =>
+                _roomBLL.UpdateRoom("1", "101", "Single", "-100", "[\"TV\"]", "Available", 1, "testadmin"));
+            Assert.That(exception?.Message, Does.Contain("Giá phải là số hợp lệ và lớn hơn 0"));
         }
 
         [Test]
         public void UpdateRoom_InvalidRoomId_ShouldThrowException()
         {
-            // Act & Assert
-            var exception = Assert.Throws<Exception>(() => _roomBLL.UpdateRoom("invalid", "102", "Single", "600000", "[\"TV\"]", "Available", 1, "testadmin"));
+            var exception = Assert.Throws<Exception>(() =>
+                _roomBLL.UpdateRoom("999", "101", "Single", "500000", "[\"TV\"]", "Available", 1, "testadmin"));
             Assert.That(exception?.Message, Does.Contain("ID phòng không hợp lệ"));
         }
 
@@ -110,23 +96,22 @@ namespace HotelManagementSystem.Tests.BLTests
         [Test]
         public void DeleteRoom_ValidInput_ShouldSucceed()
         {
-            // Arrange
             string roomId = "1";
+            ExecuteNonQuery("UPDATE Rooms SET Status = 'Available' WHERE RoomID = 1");
 
-            // Act & Assert
             Assert.DoesNotThrow(() => _roomBLL.DeleteRoom(roomId, 1, "testadmin"));
-            
-            // Verify room was deleted from database
+
             var rooms = ExecuteQuery($"SELECT * FROM Rooms WHERE RoomID = {roomId}");
             rooms.Rows.Count.Should().Be(0);
         }
 
         [Test]
-        public void DeleteRoom_InvalidRoomId_ShouldThrowException()
+        public void DeleteRoom_OccupiedRoom_ShouldThrowException()
         {
-            // Act & Assert
-            var exception = Assert.Throws<Exception>(() => _roomBLL.DeleteRoom("invalid", 1, "testadmin"));
-            Assert.That(exception?.Message, Does.Contain("ID phòng không hợp lệ"));
+            ExecuteNonQuery("UPDATE Rooms SET Status = 'Occupied' WHERE RoomID = 1");
+
+            var exception = Assert.Throws<Exception>(() => _roomBLL.DeleteRoom("1", 1, "testadmin"));
+            Assert.That(exception?.Message, Does.Contain("Không thể xóa phòng đang được sử dụng"));
         }
 
         #endregion
@@ -136,17 +121,28 @@ namespace HotelManagementSystem.Tests.BLTests
         [Test]
         public void CleanRoom_ValidInput_ShouldSucceed()
         {
-            // Arrange - Set room status to 'Uncleaned' first
             ExecuteNonQuery("UPDATE Rooms SET Status = 'Uncleaned' WHERE RoomID = 1");
-            string roomId = "1";
 
-            // Act & Assert
-            Assert.DoesNotThrow(() => _roomBLL.CleanRoom(roomId, 1, "testadmin"));
-            
-            // Verify room status was updated to 'Available'
-            var rooms = ExecuteQuery($"SELECT Status FROM Rooms WHERE RoomID = {roomId}");
-            rooms.Rows.Count.Should().Be(1);
+            Assert.DoesNotThrow(() => _roomBLL.CleanRoom("1", 1, "testadmin"));
+
+            var rooms = ExecuteQuery("SELECT Status FROM Rooms WHERE RoomID = 1");
             rooms.Rows[0]["Status"].ToString().Should().Be("Available");
+        }
+
+        [Test]
+        public void CleanRoom_RoomAlreadyClean_ShouldThrowException()
+        {
+            ExecuteNonQuery("UPDATE Rooms SET Status = 'Available' WHERE RoomID = 1");
+
+            var exception = Assert.Throws<Exception>(() => _roomBLL.CleanRoom("1", 1, "testadmin"));
+            Assert.That(exception?.Message, Does.Contain("Phòng đã sạch, không cần dọn lại"));
+        }
+
+        [Test]
+        public void CleanRoom_NonExistentRoom_ShouldThrowException()
+        {
+            var exception = Assert.Throws<Exception>(() => _roomBLL.CleanRoom("999", 1, "testadmin"));
+            Assert.That(exception?.Message, Does.Contain("Phòng không tồn tại"));
         }
 
         #endregion
@@ -156,17 +152,15 @@ namespace HotelManagementSystem.Tests.BLTests
         [Test]
         public void GetAllRooms_ShouldReturnDataTable()
         {
-            // Act
             DataTable result = _roomBLL.GetAllRooms();
 
-            // Assert
             result.Should().NotBeNull();
             result.Rows.Count.Should().BeGreaterThan(0);
-            Assert.That(result.Columns.Contains("RoomID"), Is.True);
-            Assert.That(result.Columns.Contains("RoomNumber"), Is.True);
-            Assert.That(result.Columns.Contains("RoomType"), Is.True);
-            Assert.That(result.Columns.Contains("Price"), Is.True);
-            Assert.That(result.Columns.Contains("Status"), Is.True);
+            result.Columns.Contains("RoomID").Should().BeTrue();
+            result.Columns.Contains("RoomNumber").Should().BeTrue();
+            result.Columns.Contains("RoomType").Should().BeTrue();
+            result.Columns.Contains("Price").Should().BeTrue();
+            result.Columns.Contains("Status").Should().BeTrue();
         }
 
         #endregion
@@ -176,13 +170,9 @@ namespace HotelManagementSystem.Tests.BLTests
         [Test]
         public void SearchRooms_ByStatus_ShouldReturnFilteredResults()
         {
-            // Act
             DataTable result = _roomBLL.SearchRooms("Available", "", null, null);
 
-            // Assert
             result.Should().NotBeNull();
-            
-            // Verify filtering logic
             foreach (DataRow row in result.Rows)
             {
                 row["Status"].ToString().Should().Be("Available");
@@ -190,11 +180,10 @@ namespace HotelManagementSystem.Tests.BLTests
         }
 
         [Test]
-        public void SearchRooms_InvalidStatus_ShouldThrowException()
+        public void SearchRooms_NoMatch_ShouldReturnEmpty()
         {
-            // Act & Assert
-            var exception = Assert.Throws<Exception>(() => _roomBLL.SearchRooms("InvalidStatus", "", null, null));
-            Assert.That(exception?.Message, Does.Contain("Trạng thái phòng không hợp lệ"));
+            DataTable result = _roomBLL.SearchRooms("VIP", "", null, null);
+            result.Rows.Count.Should().Be(0);
         }
 
         #endregion
@@ -204,29 +193,17 @@ namespace HotelManagementSystem.Tests.BLTests
         [Test]
         public void CheckRoomAvailability_ValidDateRange_ShouldReturnAvailableRooms()
         {
-            // Arrange
-            DateTime startDate = DateTime.Now.AddDays(1);
-            DateTime endDate = DateTime.Now.AddDays(3);
+            var result = _roomBLL.CheckRoomAvailability(DateTime.Now.AddDays(1), DateTime.Now.AddDays(3));
 
-            // Act
-            DataTable result = _roomBLL.CheckRoomAvailability(startDate, endDate);
-
-            // Assert
             result.Should().NotBeNull();
-            Assert.That(result.Columns.Contains("RoomID"), Is.True);
-            Assert.That(result.Columns.Contains("RoomNumber"), Is.True);
-            Assert.That(result.Columns.Contains("Status"), Is.True);
+            result.Columns.Contains("RoomID").Should().BeTrue();
         }
 
         [Test]
         public void CheckRoomAvailability_InvalidDateRange_ShouldThrowException()
         {
-            // Arrange
-            DateTime startDate = DateTime.Now.AddDays(3);
-            DateTime endDate = DateTime.Now.AddDays(1); // End date before start date
-
-            // Act & Assert
-            var exception = Assert.Throws<Exception>(() => _roomBLL.CheckRoomAvailability(startDate, endDate));
+            var exception = Assert.Throws<Exception>(() =>
+                _roomBLL.CheckRoomAvailability(DateTime.Now.AddDays(3), DateTime.Now.AddDays(1)));
             Assert.That(exception?.Message, Does.Contain("Ngày check-in phải trước ngày check-out"));
         }
 

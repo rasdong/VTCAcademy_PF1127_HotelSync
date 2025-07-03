@@ -97,7 +97,7 @@ namespace HotelManagementSystem.Tests.BLTests
                     FOREIGN KEY (UpdatedBy) REFERENCES Users(UserID)
                 );");
 
-            
+
         }
 
         #region CreateBooking Tests
@@ -358,45 +358,48 @@ namespace HotelManagementSystem.Tests.BLTests
         #endregion
 
         #region CheckOut Tests
-        
+
 
         [Test]
-        public void CheckOut_ValidActiveBooking_ShouldSucceed()
-        {
+        public void CheckOut_ValidActiveBooking_ShouldSucceed() {
             // Arrange
             string idCard = "123456789";
             string roomId = "1";
             string checkInDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             string checkOutDate = DateTime.Now.AddDays(2).ToString("yyyy-MM-dd HH:mm:ss");
             int bookingId = _bookingBLL.CreateBooking(idCard, roomId, checkInDate, checkOutDate, 1, "testadmin");
-            
+
+            _bookingBLL.CheckIn(bookingId.ToString(), idCard, 1, "testadmin");
 
             // Act & Assert
-            Assert.DoesNotThrow(() => _bookingBLL.CheckOut(bookingId.ToString(), 1, "testadmin"));
+            Assert.DoesNotThrow(() => _bookingBLL.CheckOut(bookingId.ToString(), "123456789", 1, "testadmin"));
             var booking = ExecuteQuery($"SELECT Status FROM Bookings WHERE BookingID = {bookingId}");
             booking.Rows[0]["Status"].ToString().Should().Be("Completed");
             var room = ExecuteQuery($"SELECT Status FROM Rooms WHERE RoomID = 1");
             room.Rows[0]["Status"].ToString().Should().Be("Uncleaned");
         }
 
+
+
         [Test]
         public void CheckOut_InvalidBookingId_ShouldThrowException()
         {
             // Act & Assert
-            var exception = Assert.Throws<Exception>(() => _bookingBLL.CheckOut("999", 1, "testadmin"));
+            var exception = Assert.Throws<Exception>(() => _bookingBLL.CheckOut("999", "123456789", 1, "testadmin"));
             Assert.That(exception?.Message, Does.Contain("Đặt phòng không tồn tại"));
         }
+
 
         [Test]
         public void CheckOut_WithoutPermission_ShouldThrowException()
         {
             // Arrange
             ExecuteNonQuery(@"
-                INSERT INTO Roles (RoleID, RoleName, Permissions, CreatedAt) VALUES
-                (2, 'NoPermission', '[]', '2024-10-15 10:00:00');
-                INSERT INTO Users (UserID, Username, Password, RoleID) VALUES
-                (2, 'noperm', 'noperm123', 2);
-            ");
+        INSERT INTO Roles (RoleID, RoleName, Permissions, CreatedAt) VALUES
+        (2, 'NoPermission', '[]', '2024-10-15 10:00:00');
+        INSERT INTO Users (UserID, Username, Password, RoleID) VALUES
+        (2, 'noperm', 'noperm123', 2);
+    ");
             string idCard = "123456789";
             string roomId = "1";
             string checkInDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -404,11 +407,10 @@ namespace HotelManagementSystem.Tests.BLTests
             int bookingId = _bookingBLL.CreateBooking(idCard, roomId, checkInDate, checkOutDate, 1, "testadmin");
 
             // Act & Assert
-            var exception = Assert.Throws<Exception>(() => _bookingBLL.CheckOut(bookingId.ToString(), 2, "noperm"));
+            var exception = Assert.Throws<Exception>(() => _bookingBLL.CheckOut(bookingId.ToString(), "123456789", 2, "noperm"));
             Assert.That(exception?.Message, Does.Contain("Người dùng không có quyền thực hiện check-out"));
         }
-
-        #endregion
+#endregion
 
         #region ExtendBooking Tests
 
@@ -582,12 +584,13 @@ namespace HotelManagementSystem.Tests.BLTests
         }
 
         [Test]
-        public void CheckOut_NonExistentBooking_ShouldThrowException()
-        {
-            // Act & Assert
-            var exception = Assert.Throws<Exception>(() => _bookingBLL.CheckOut("999", 1, "testadmin"));
-            Assert.That(exception?.Message, Does.Contain("Đặt phòng không tồn tại"));
-        }
+public void CheckOut_NonExistentBooking_ShouldThrowException()
+{
+    // Act & Assert
+    var exception = Assert.Throws<Exception>(() => _bookingBLL.CheckOut("999", "123456789", 1, "testadmin"));
+    Assert.That(exception?.Message, Does.Contain("Đặt phòng không tồn tại"));
+}
+
 
         [Test]
         public void ExtendBooking_NonExistentBooking_ShouldThrowException()
@@ -601,5 +604,57 @@ namespace HotelManagementSystem.Tests.BLTests
         }
 
         #endregion
+
+
+        #region GetAllBookings Tests
+
+        [Test]
+        public void GetAllBookings_WithExistingBookings_ShouldReturnData()
+        {
+            // Arrange
+            string idCard = "123456789";
+            string roomId = "1";
+            string checkInDate = DateTime.Now.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss");
+            string checkOutDate = DateTime.Now.AddDays(3).ToString("yyyy-MM-dd HH:mm:ss");
+            _bookingBLL.CreateBooking(idCard, roomId, checkInDate, checkOutDate, 1, "testadmin");
+
+            // Act
+            DataTable result = _bookingBLL.GetAllBookings();
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Rows.Count.Should().BeGreaterThan(0);
+            Assert.That(result.Columns.Contains("BookingID"), Is.True);
+            Assert.That(result.Columns.Contains("CustomerID"), Is.True);
+            Assert.That(result.Columns.Contains("RoomID"), Is.True);
+            Assert.That(result.Columns.Contains("CheckInDate"), Is.True);
+            Assert.That(result.Columns.Contains("CheckOutDate"), Is.True);
+            Assert.That(result.Columns.Contains("Status"), Is.True);
+        }
+
+        [Test]
+        public void GetAllBookings_NoBookings_ShouldReturnEmptyDataTable()
+        {
+            // Act
+            DataTable result = _bookingBLL.GetAllBookings();
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Rows.Count.Should().Be(0);
+        }
+
+        [Test]
+        public void GetAllBookings_DALThrowsException_ShouldThrowException()
+        {
+            // Arrange
+            ExecuteNonQuery("DROP TABLE Bookings");
+
+            // Act & Assert
+            var exception = Assert.Throws<Exception>(() => _bookingBLL.GetAllBookings());
+            Assert.That(exception?.Message, Does.Contain("Lỗi khi lấy danh sách đặt phòng"));
+        }
+
+        #endregion
     }
 }
+    

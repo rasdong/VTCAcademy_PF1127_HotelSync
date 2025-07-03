@@ -1,4 +1,3 @@
-
 using System;
 using System.Data;
 
@@ -23,7 +22,7 @@ namespace HotelManagementSystem
 
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.SetCursorPosition(x + 2, y + 2);
-                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
                 Console.SetCursorPosition(x + 2, y + 3);
                 Console.Write(new string('─', width - 4));
 
@@ -129,7 +128,7 @@ namespace HotelManagementSystem
 
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(x + 2, y + 2);
-            Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+            Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
             Console.SetCursorPosition(x + 2, y + 3);
             Console.Write(new string('─', width - 4));
 
@@ -164,8 +163,8 @@ namespace HotelManagementSystem
 
             try
             {
-                _roomBLL.AddRoom(roomNumber, roomType, priceInput, amenities, currentUserId ?? 0, currentUsername ?? "");
-                ShowSuccessMessage("Thêm phòng thành công! Nhấn phím bất kỳ để quay lại...");
+                int roomId = _roomBLL.AddRoom(roomNumber, roomType, priceInput, amenities, currentUserId ?? 0, currentUsername ?? "");
+                ShowSuccessMessage($"Thêm phòng thành công! RoomID: {roomId}. Nhấn phím bất kỳ để quay lại...");
                 Console.ReadKey();
             }
             catch (Exception ex)
@@ -183,7 +182,7 @@ namespace HotelManagementSystem
 
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(x + 2, y + 2);
-            Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+            Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
             Console.SetCursorPosition(x + 2, y + 3);
             Console.Write(new string('─', width - 4));
 
@@ -253,7 +252,7 @@ namespace HotelManagementSystem
 
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(x + 2, y + 2);
-            Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+            Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
             Console.SetCursorPosition(x + 2, y + 3);
             Console.Write(new string('─', width - 4));
 
@@ -283,7 +282,7 @@ namespace HotelManagementSystem
 
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(x + 2, y + 2);
-            Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+            Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
             Console.SetCursorPosition(x + 2, y + 3);
             Console.Write(new string('─', width - 4));
 
@@ -308,10 +307,14 @@ namespace HotelManagementSystem
 
             string[] headers = new[] { "ID", "Số phòng", "Loại phòng", "Giá (VND)", "Trạng thái", "Tiện nghi" };
             int[] columnWidths = new int[headers.Length];
-            for (int col = 0; col < headers.Length; col++)
-            {
-                columnWidths[col] = headers[col].Length;
-            }
+
+            // Đặt độ rộng tối thiểu cho từng cột
+            columnWidths[0] = 5;  // ID
+            columnWidths[1] = 10; // Số phòng
+            columnWidths[2] = 12; // Loại phòng
+            columnWidths[3] = 15; // Giá (VND)
+            columnWidths[4] = 15; // Trạng thái
+            columnWidths[5] = 20; // Tiện nghi
 
             string[,] roomData = new string[rooms.Rows.Count, headers.Length];
             for (int i = 0; i < rooms.Rows.Count; i++)
@@ -321,17 +324,18 @@ namespace HotelManagementSystem
                 roomData[i, 2] = rooms.Rows[i]["RoomType"].ToString() ?? "";
                 roomData[i, 3] = Convert.ToDecimal(rooms.Rows[i]["Price"]).ToString("N0");
                 roomData[i, 4] = rooms.Rows[i]["Status"].ToString() ?? "";
-                roomData[i, 5] = rooms.Rows[i]["Amenities"].ToString() ?? "";
+                roomData[i, 5] = TruncateText(rooms.Rows[i]["Amenities"].ToString() ?? "", columnWidths[5] - 3); // Cắt ngắn tiện nghi
 
+                // Cập nhật độ rộng cột nếu cần
                 for (int col = 0; col < headers.Length; col++)
                 {
                     int length = roomData[i, col].Length;
                     if (length > columnWidths[col])
-                        columnWidths[col] = length;
-                    columnWidths[col] += 2;
+                        columnWidths[col] = Math.Min(length, columnWidths[col] + 5); // Tăng độ rộng tối đa 5 ký tự
                 }
             }
 
+            // Hiển thị tiêu đề cột
             Console.SetCursorPosition(x + 2, y + 6);
             Console.ForegroundColor = ConsoleColor.Magenta;
             for (int col = 0; col < headers.Length; col++)
@@ -340,10 +344,12 @@ namespace HotelManagementSystem
             }
             Console.WriteLine();
 
+            // Hiển thị đường phân cách
             Console.SetCursorPosition(x + 2, y + 7);
-            Console.WriteLine(new string('─', width - 4));
+            Console.WriteLine(new string('─', columnWidths.Sum() + headers.Length - 1));
             Console.ResetColor();
 
+            // Hiển thị dữ liệu
             for (int i = 0; i < roomData.GetLength(0); i++)
             {
                 Console.SetCursorPosition(x + 2, y + 8 + i * 2);
@@ -355,13 +361,21 @@ namespace HotelManagementSystem
                 if (i < roomData.GetLength(0) - 1)
                 {
                     Console.SetCursorPosition(x + 2, y + 9 + i * 2);
-                    Console.WriteLine(new string('─', width - 4));
+                    Console.WriteLine(new string('─', columnWidths.Sum() + headers.Length - 1));
                 }
             }
 
             Console.SetCursorPosition(x + 2, y + 12 + (roomData.GetLength(0) - 1) * 2);
             Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
             Console.ReadKey();
+        }
+
+        // Phương thức hỗ trợ cắt ngắn văn bản
+        private string TruncateText(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+                return text;
+            return text.Substring(0, maxLength) + "...";
         }
 
         private void ShowCleanRoom()
@@ -372,7 +386,7 @@ namespace HotelManagementSystem
 
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(x + 2, y + 2);
-            Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+            Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
             Console.SetCursorPosition(x + 2, y + 3);
             Console.Write(new string('─', width - 4));
 
@@ -395,160 +409,179 @@ namespace HotelManagementSystem
         }
 
         private void ShowSearchRooms()
+{
+    Console.Clear();
+    DrawHeader("Hệ Thống Quản Lý Khách Sạn - Tìm Kiếm Phòng");
+    SetupBox(100, 22);
+
+    Console.ForegroundColor = ConsoleColor.White;
+    Console.SetCursorPosition(x + 2, y + 2);
+    Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
+    Console.SetCursorPosition(x + 2, y + 3);
+    Console.Write(new string('─', width - 4));
+
+  Console.SetCursorPosition(x + 2, y + 4);
+Console.Write("Trạng thái (Available/Occupied/Under Maintenance/Uncleaned)");
+Console.SetCursorPosition(x + 2, y + 5);
+Console.Write("Để trống nếu không lọc");
+
+    string? status = ReadInputWithEscape(x + 76, y + 4);
+    if (status == null) return;
+
+    Console.SetCursorPosition(x + 2, y + 5);
+    Console.Write(new string('─', width - 4));
+
+    Console.SetCursorPosition(x + 2, y + 6);
+    Console.Write("Loại phòng (Single/Double/Suite, để trống nếu không lọc): ");
+    string? roomType = ReadInputWithEscape(x + 58, y + 6);
+    if (roomType == null) return;
+
+    Console.SetCursorPosition(x + 2, y + 7);
+    Console.Write(new string('─', width - 4));
+
+    Console.SetCursorPosition(x + 2, y + 8);
+    Console.Write("Giá tối thiểu (VND, để trống nếu không lọc): ");
+    string? minPriceInput = ReadInputWithEscape(x + 44, y + 8);
+    if (minPriceInput == null) return;
+
+    Console.SetCursorPosition(x + 2, y + 9);
+    Console.Write(new string('─', width - 4));
+
+    Console.SetCursorPosition(x + 2, y + 10);
+    Console.Write("Giá tối đa (VND, để trống nếu không lọc): ");
+    string? maxPriceInput = ReadInputWithEscape(x + 42, y + 10);
+    if (maxPriceInput == null) return;
+
+    try
+    {
+        decimal? minPrice = string.IsNullOrWhiteSpace(minPriceInput) ? null : decimal.Parse(minPriceInput);
+        decimal? maxPrice = string.IsNullOrWhiteSpace(maxPriceInput) ? null : decimal.Parse(maxPriceInput);
+        DataTable rooms = _roomBLL.SearchRooms(status, roomType, minPrice, maxPrice);
+
+        Console.Clear();
+        DrawHeader("Hệ Thống Quản Lý Khách Sạn - Kết Quả Tìm Kiếm Phòng");
+        SetupBox(100, 22);
+
+        Console.SetCursorPosition(x + 2, y + 2);
+        Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
+        Console.SetCursorPosition(x + 2, y + 3);
+        Console.Write(new string('─', width - 4));
+
+        Console.SetCursorPosition(x + 2, y + 4);
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.Write("--- KẾT QUẢ TÌM KIẾM PHÒNG ---");
+        Console.ResetColor();
+        Console.SetCursorPosition(x + 2, y + 5);
+        Console.Write(new string('─', width - 4));
+
+        string[] headers = new[] { "ID", "Số phòng", "Loại phòng", "Giá (VND)", "Trạng thái", "Tiện nghi" };
+        int[] columnWidths = new int[headers.Length];
+        columnWidths[0] = 5;
+        columnWidths[1] = 10;
+        columnWidths[2] = 12;
+        columnWidths[3] = 15;
+        columnWidths[4] = 15;
+        columnWidths[5] = 20;
+
+        string[,] roomData = new string[rooms.Rows.Count, headers.Length];
+        for (int i = 0; i < rooms.Rows.Count; i++)
         {
-            Console.Clear();
-            DrawHeader("Hệ Thống Quản Lý Khách Sạn - Tìm Kiếm Phòng");
-            SetupBox(80, 16);
+            roomData[i, 0] = rooms.Rows[i]["RoomID"].ToString() ?? "";
+            roomData[i, 1] = rooms.Rows[i]["RoomNumber"].ToString() ?? "";
+            roomData[i, 2] = rooms.Rows[i]["RoomType"].ToString() ?? "";
+            roomData[i, 3] = Convert.ToDecimal(rooms.Rows[i]["Price"]).ToString("N0");
+            roomData[i, 4] = rooms.Rows[i]["Status"].ToString() ?? "";
+            roomData[i, 5] = TruncateText(rooms.Rows[i]["Amenities"].ToString() ?? "", columnWidths[5] - 3);
 
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.SetCursorPosition(x + 2, y + 2);
-            Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
-            Console.SetCursorPosition(x + 2, y + 3);
-            Console.Write(new string('─', width - 4));
-
-            Console.SetCursorPosition(x + 2, y + 4);
-            Console.Write("Trạng thái (Available/Occupied/Under Maintenance/Uncleaned, để trống nếu không lọc): ");
-            string? status = ReadInputWithEscape(x + 74, y + 4);
-            if (status == null) return;
-
-            Console.SetCursorPosition(x + 2, y + 5);
-            Console.Write(new string('─', width - 4));
-
-            Console.SetCursorPosition(x + 2, y + 6);
-            Console.Write("Loại phòng (Single/Double/Suite, để trống nếu không lọc): ");
-            string? roomType = ReadInputWithEscape(x + 58, y + 6);
-            if (roomType == null) return;
-
-            Console.SetCursorPosition(x + 2, y + 7);
-            Console.Write(new string('─', width - 4));
-
-            Console.SetCursorPosition(x + 2, y + 8);
-            Console.Write("Giá tối thiểu (VND, để trống nếu không lọc): ");
-            string? minPriceInput = ReadInputWithEscape(x + 44, y + 8);
-            if (minPriceInput == null) return;
-
-            Console.SetCursorPosition(x + 2, y + 9);
-            Console.Write(new string('─', width - 4));
-
-            Console.SetCursorPosition(x + 2, y + 10);
-            Console.Write("Giá tối đa (VND, để trống nếu không lọc): ");
-            string? maxPriceInput = ReadInputWithEscape(x + 42, y + 10);
-            if (maxPriceInput == null) return;
-
-            try
+            for (int col = 0; col < headers.Length; col++)
             {
-                decimal? minPrice = string.IsNullOrWhiteSpace(minPriceInput) ? null : decimal.Parse(minPriceInput);
-                decimal? maxPrice = string.IsNullOrWhiteSpace(maxPriceInput) ? null : decimal.Parse(maxPriceInput);
-                DataTable rooms = _roomBLL.SearchRooms(status, roomType, minPrice, maxPrice);
-
-                Console.Clear();
-                DrawHeader("Hệ Thống Quản Lý Khách Sạn - Kết Quả Tìm Kiếm Phòng");
-                SetupBox(100, 22);
-
-                Console.SetCursorPosition(x + 2, y + 2);
-                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
-                Console.SetCursorPosition(x + 2, y + 3);
-                Console.Write(new string('─', width - 4));
-
-                Console.SetCursorPosition(x + 2, y + 4);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write("--- KẾT QUẢ TÌM KIẾM PHÒNG ---");
-                Console.ResetColor();
-                Console.SetCursorPosition(x + 2, y + 5);
-                Console.Write(new string('─', width - 4));
-
-                string[] headers = new[] { "ID", "Số phòng", "Loại phòng", "Giá (VND)", "Trạng thái", "Tiện nghi" };
-                int[] columnWidths = new int[headers.Length];
-                for (int col = 0; col < headers.Length; col++)
-                {
-                    columnWidths[col] = headers[col].Length;
-                }
-
-                string[,] roomData = new string[rooms.Rows.Count, headers.Length];
-                for (int i = 0; i < rooms.Rows.Count; i++)
-                {
-                    roomData[i, 0] = rooms.Rows[i]["RoomID"].ToString() ?? "";
-                    roomData[i, 1] = rooms.Rows[i]["RoomNumber"].ToString() ?? "";
-                    roomData[i, 2] = rooms.Rows[i]["RoomType"].ToString() ?? "";
-                    roomData[i, 3] = Convert.ToDecimal(rooms.Rows[i]["Price"]).ToString("N0");
-                    roomData[i, 4] = rooms.Rows[i]["Status"].ToString() ?? "";
-                    roomData[i, 5] = rooms.Rows[i]["Amenities"].ToString() ?? "";
-
-                    for (int col = 0; col < headers.Length; col++)
-                    {
-                        int length = roomData[i, col].Length;
-                        if (length > columnWidths[col])
-                            columnWidths[col] = length;
-                        columnWidths[col] += 2;
-                    }
-                }
-
-                Console.SetCursorPosition(x + 2, y + 6);
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                for (int col = 0; col < headers.Length; col++)
-                {
-                    Console.Write(headers[col].PadRight(columnWidths[col]));
-                }
-                Console.WriteLine();
-
-                Console.SetCursorPosition(x + 2, y + 7);
-                Console.WriteLine(new string('─', width - 4));
-                Console.ResetColor();
-
-                for (int i = 0; i < roomData.GetLength(0); i++)
-                {
-                    Console.SetCursorPosition(x + 2, y + 8 + i * 2);
-                    for (int col = 0; col < roomData.GetLength(1); col++)
-                    {
-                        Console.Write(roomData[i, col].PadRight(columnWidths[col]));
-                    }
-                    Console.WriteLine();
-                    if (i < roomData.GetLength(0) - 1)
-                    {
-                        Console.SetCursorPosition(x + 2, y + 9 + i * 2);
-                        Console.WriteLine(new string('─', width - 4));
-                    }
-                }
-
-                Console.SetCursorPosition(x + 2, y + 12 + (roomData.GetLength(0) - 1) * 2);
-                Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
-                Console.ReadKey();
-            }
-            catch (Exception ex)
-            {
-                ShowErrorMessage(ex.Message);
-                Console.ReadKey();
+                int length = roomData[i, col].Length;
+                if (length > columnWidths[col])
+                    columnWidths[col] = Math.Min(length, columnWidths[col] + 5);
             }
         }
+
+        Console.SetCursorPosition(x + 2, y + 6);
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        for (int col = 0; col < headers.Length; col++)
+        {
+            Console.Write(headers[col].PadRight(columnWidths[col]));
+        }
+        Console.WriteLine();
+
+        Console.SetCursorPosition(x + 2, y + 7);
+        Console.WriteLine(new string('─', columnWidths.Sum() + headers.Length - 1));
+        Console.ResetColor();
+
+        for (int i = 0; i < roomData.GetLength(0); i++)
+        {
+            Console.SetCursorPosition(x + 2, y + 8 + i * 2);
+            for (int col = 0; col < roomData.GetLength(1); col++)
+            {
+                Console.Write(roomData[i, col].PadRight(columnWidths[col]));
+            }
+            Console.WriteLine();
+            if (i < roomData.GetLength(0) - 1)
+            {
+                Console.SetCursorPosition(x + 2, y + 9 + i * 2);
+                Console.WriteLine(new string('─', columnWidths.Sum() + headers.Length - 1));
+            }
+        }
+
+        Console.SetCursorPosition(x + 2, y + 12 + (roomData.GetLength(0) - 1) * 2);
+        Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
+        Console.ReadKey();
+    }
+    catch (Exception ex)
+    {
+        ShowErrorMessage(ex.Message);
+        Console.ReadKey();
+    }
+}
+
 
         private void ShowCheckRoomAvailability()
         {
             Console.Clear();
             DrawHeader("Hệ Thống Quản Lý Khách Sạn - Kiểm Tra Tình Trạng Phòng");
-            SetupBox(80, 12);
+            SetupBox(80, 13);
 
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(x + 2, y + 2);
-            Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+            Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
             Console.SetCursorPosition(x + 2, y + 3);
             Console.Write(new string('─', width - 4));
 
+            // 🔄 Thay phần nhập ngày bắt đầu bằng lựa chọn hiện tại hoặc nhập
             Console.SetCursorPosition(x + 2, y + 4);
-            Console.Write("Ngày check-in (yyyy-MM-dd): ");
-            string? startDateInput = ReadInputWithEscape(x + 29, y + 4);
-            if (startDateInput == null) return;
+            Console.Write("Dùng ngày bắt đầu là hiện tại? (Y/N): ");
+            string? useNowInput = ReadInputWithEscape(x + 39, y + 4);
+            if (useNowInput == null) return;
 
-            Console.SetCursorPosition(x + 2, y + 5);
-            Console.Write(new string('─', width - 4));
+            DateTime startDate;
+            if (useNowInput.Trim().ToUpper() == "Y")
+            {
+                startDate = DateTime.Now;
+            }
+            else
+            {
+                Console.SetCursorPosition(x + 2, y + 5);
+                Console.Write("Nhập ngày bắt đầu (yyyy-MM-dd): ");
+                string? startDateInput = ReadInputWithEscape(x + 33, y + 5);
+                if (startDateInput == null) return;
+                startDate = DateTime.Parse(startDateInput);
+            }
 
             Console.SetCursorPosition(x + 2, y + 6);
-            Console.Write("Ngày check-out (yyyy-MM-dd): ");
-            string? endDateInput = ReadInputWithEscape(x + 30, y + 6);
+            Console.Write(new string('─', width - 4));
+
+            Console.SetCursorPosition(x + 2, y + 7);
+            Console.Write("Ngày kết thúc (yyyy-MM-dd): ");
+            string? endDateInput = ReadInputWithEscape(x + 30, y + 7);
             if (endDateInput == null) return;
 
             try
             {
-                DateTime startDate = DateTime.Parse(startDateInput);
                 DateTime endDate = DateTime.Parse(endDateInput);
                 DataTable rooms = _roomBLL.CheckRoomAvailability(startDate, endDate);
 
@@ -557,7 +590,7 @@ namespace HotelManagementSystem
                 SetupBox(100, 22);
 
                 Console.SetCursorPosition(x + 2, y + 2);
-                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
                 Console.SetCursorPosition(x + 2, y + 3);
                 Console.Write(new string('─', width - 4));
 

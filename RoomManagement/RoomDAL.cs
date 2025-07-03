@@ -33,7 +33,7 @@ namespace HotelManagementSystem
         }
 
         // 1. Thêm phòng mới
-        public void AddRoom(string roomNumber, string roomType, decimal price, string amenities, int updatedBy, string updatedByUsername)
+        public int AddRoom(string roomNumber, string roomType, decimal price, string amenities, int updatedBy, string updatedByUsername)
         {
             using (MySqlConnection conn = DataHelper.Instance.GetConnection())
             {
@@ -47,15 +47,25 @@ namespace HotelManagementSystem
                             CommandType = CommandType.StoredProcedure,
                             Transaction = transaction
                         };
+        
                         cmd.Parameters.AddWithValue("p_RoomNumber", roomNumber);
                         cmd.Parameters.AddWithValue("p_RoomType", roomType);
                         cmd.Parameters.AddWithValue("p_Price", price);
                         cmd.Parameters.AddWithValue("p_Amenities", amenities);
                         cmd.Parameters.AddWithValue("p_UpdatedBy", updatedBy);
                         cmd.Parameters.AddWithValue("p_UpdatedByUsername", updatedByUsername);
+        
+                        var outputParam = new MySqlParameter("p_RoomID", MySqlDbType.Int32)
+                        {
+                            Direction = ParameterDirection.Output
+                        };
+                        cmd.Parameters.Add(outputParam);
+        
                         cmd.ExecuteNonQuery();
-
+                        int roomId = Convert.ToInt32(outputParam.Value);
+        
                         transaction.Commit();
+                        return roomId;
                     }
                     catch (MySqlException ex)
                     {

@@ -1,4 +1,3 @@
-
 using MySql.Data.MySqlClient;
 using System;
 using System.Data;
@@ -8,7 +7,6 @@ namespace HotelManagementSystem
 {
     public class BookingDAL
     {
-        // Kiểm tra quyền người dùng
         public bool CheckUserPermission(int updatedBy, string requiredPermission)
         {
             using (MySqlConnection conn = DataHelper.Instance.GetConnection())
@@ -33,7 +31,6 @@ namespace HotelManagementSystem
             }
         }
 
-        // 1. Đặt phòng
         public int CreateBooking(string IDCard, int roomId, DateTime checkInDate, DateTime checkOutDate, int updatedBy, string updatedByUsername)
         {
             using (MySqlConnection conn = DataHelper.Instance.GetConnection())
@@ -64,13 +61,12 @@ namespace HotelManagementSystem
                     catch (MySqlException ex)
                     {
                         transaction.Rollback();
-                        throw new Exception(ex.Message); // Chỉ truyền thông báo từ stored procedure
+                        throw new Exception(ex.Message);
                     }
                 }
             }
         }
 
-        // 2. Hủy đặt phòng
         public void CancelBooking(int bookingId, int updatedBy, string updatedByUsername)
         {
             using (MySqlConnection conn = DataHelper.Instance.GetConnection())
@@ -101,7 +97,6 @@ namespace HotelManagementSystem
             }
         }
 
-        // 3. Check-in
         public void CheckIn(int bookingId, string IDCard, int updatedBy, string updatedByUsername)
         {
             using (MySqlConnection conn = DataHelper.Instance.GetConnection())
@@ -133,7 +128,6 @@ namespace HotelManagementSystem
             }
         }
 
-        // 4. Check-out
         public void CheckOut(int bookingId, int updatedBy, string updatedByUsername)
         {
             using (MySqlConnection conn = DataHelper.Instance.GetConnection())
@@ -164,7 +158,6 @@ namespace HotelManagementSystem
             }
         }
 
-        // 5. Gia hạn đặt phòng
         public void ExtendBooking(int bookingId, DateTime newCheckOutDate, int updatedBy, string updatedByUsername)
         {
             using (MySqlConnection conn = DataHelper.Instance.GetConnection())
@@ -180,7 +173,7 @@ namespace HotelManagementSystem
                             Transaction = transaction
                         };
                         cmd.Parameters.AddWithValue("p_BookingID", bookingId);
-                        cmd.Parameters.AddWithValue("p_NewCheckOutDate", newCheckOutDate.Date);
+                        cmd.Parameters.AddWithValue("p_NewCheckOutDate", newCheckOutDate);
                         cmd.Parameters.AddWithValue("p_UpdatedBy", updatedBy);
                         cmd.Parameters.AddWithValue("p_UpdatedByUsername", updatedByUsername);
                         cmd.ExecuteNonQuery();
@@ -196,7 +189,6 @@ namespace HotelManagementSystem
             }
         }
 
-        // 6. Xem lịch sử đặt phòng
         public DataTable GetBookingHistory(int customerId, int? roomId)
         {
             try
@@ -218,7 +210,6 @@ namespace HotelManagementSystem
             }
             catch (MySqlException ex)
             {
-                // Xử lý các lỗi cụ thể từ stored procedure
                 if (ex.Message.Contains("Khách hàng không tồn tại"))
                     throw new Exception("Khách hàng không tồn tại.");
                 if (ex.Message.Contains("Phòng không tồn tại"))
@@ -226,6 +217,7 @@ namespace HotelManagementSystem
                 throw new Exception($"Lỗi khi lấy lịch sử đặt phòng: {ex.Message}");
             }
         }
+
         public DataTable CheckBookingExists(int bookingId)
         {
             try
@@ -249,5 +241,29 @@ namespace HotelManagementSystem
                 throw new Exception(ex.Message);
             }
         }
+
+        public DataTable GetAllBookings()
+        {
+            try
+            {
+                DataTable dt = new DataTable();
+                using (MySqlConnection conn = DataHelper.Instance.GetConnection())
+                {
+                    conn.Open();
+                    MySqlCommand cmd = new MySqlCommand("getAllBookings", conn)
+                    {
+                        CommandType = CommandType.StoredProcedure
+                    };
+                    MySqlDataReader reader = cmd.ExecuteReader();
+                    dt.Load(reader);
+                }
+                return dt;
+            }
+            catch (MySqlException ex)
+            {
+                throw new Exception($"Lỗi khi lấy danh sách đặt phòng: {ex.Message}");
+            }
+        }
+        
     }
 }

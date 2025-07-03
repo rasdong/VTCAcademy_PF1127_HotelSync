@@ -30,10 +30,10 @@ namespace HotelManagementSystem
                     throw new ArgumentException("Loại phòng phải là Single, Double hoặc Suite.");
                 if (string.IsNullOrWhiteSpace(priceInput) || !decimal.TryParse(priceInput, out decimal price) || price <= 0)
                     throw new ArgumentException("Giá phải là số hợp lệ và lớn hơn 0.");
-                if (string.IsNullOrWhiteSpace(amenities))
+                if (string.IsNullOrWhiteSpace(amenities)) // Kiểm tra Amenities không rỗng
                     throw new ArgumentException("Tiện nghi không được để trống.");
             }
-
+        
             if (isUpdate)
             {
                 if (string.IsNullOrWhiteSpace(status))
@@ -41,29 +41,29 @@ namespace HotelManagementSystem
                 if (!new[] { "Available", "Occupied", "Under Maintenance", "Uncleaned" }.Contains(status))
                     throw new ArgumentException("Trạng thái phòng phải là Available, Occupied, Under Maintenance hoặc Uncleaned.");
             }
-
+        
             if (roomIdInput != null)
             {
                 if (string.IsNullOrWhiteSpace(roomIdInput) || !int.TryParse(roomIdInput, out int roomId) || roomId <= 0)
                     throw new ArgumentException("ID phòng không hợp lệ.");
             }
-
+        
             if (updatedBy <= 0)
                 throw new ArgumentException("ID người dùng không hợp lệ.");
             if (string.IsNullOrWhiteSpace(updatedByUsername))
                 throw new ArgumentException("Tên người dùng không được để trống.");
         }
 
-        public void AddRoom(string roomNumber, string roomType, string priceInput, string amenities, int updatedBy, string updatedByUsername)
+        public int AddRoom(string roomNumber, string roomType, string priceInput, string amenities, int updatedBy, string updatedByUsername)
         {
             try
             {
                 ValidateRoomInput(roomNumber: roomNumber, roomType: roomType, priceInput: priceInput, amenities: amenities, updatedBy: updatedBy, updatedByUsername: updatedByUsername, isCreate: true);
                 if (!_roomDAL.CheckUserPermission(updatedBy, "manage_rooms"))
                     throw new ArgumentException("Người dùng không có quyền thêm phòng.");
-
+        
                 decimal price = decimal.Parse(priceInput);
-                _roomDAL.AddRoom(roomNumber, roomType, price, amenities, updatedBy, updatedByUsername);
+                return _roomDAL.AddRoom(roomNumber, roomType, price, amenities, updatedBy, updatedByUsername);
             }
             catch (Exception ex)
             {
@@ -164,7 +164,7 @@ namespace HotelManagementSystem
             try
             {
                 if (startDate >= endDate)
-                    throw new ArgumentException("Ngày check-in phải trước ngày check-out.");
+                    throw new ArgumentException("Ngày bắt đầu phải trước ngày kết thúc.");
                 return _roomDAL.CheckRoomAvailability(startDate, endDate);
             }
             catch (Exception ex)

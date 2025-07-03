@@ -48,12 +48,13 @@ CREATE TABLE Rooms (
     RoomNumber VARCHAR(10) NOT NULL UNIQUE,
     RoomType ENUM('Single', 'Double', 'Suite') NOT NULL,
     Price DECIMAL(10, 2) NOT NULL,
-    Status ENUM('Available', 'Occupied', 'Under Maintenance','Uncleaned') NOT NULL DEFAULT 'Available',
-    Amenities JSON NOT NULL,
+    Status ENUM('Available', 'Occupied', 'Under Maintenance', 'Uncleaned') NOT NULL DEFAULT 'Available',
+    Amenities VARCHAR(255) NOT NULL, 
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UpdatedBy INT NULL,
-    UpdatedByUsername VARCHAR(50) NULL 
+    UpdatedByUsername VARCHAR(50) NULL
+    
 );
 
 -- Add foreign key and indexes for Rooms
@@ -92,7 +93,7 @@ CREATE TABLE Bookings (
     RoomID INT NOT NULL,
     CheckInDate DATETIME NOT NULL,
     CheckOutDate DATETIME NOT NULL,
-    Status ENUM('Active', 'Completed', 'Cancelled') NOT NULL DEFAULT 'Active',
+    Status ENUM('Active', 'Completed', 'Cancelled', 'CheckedIn') NOT NULL DEFAULT 'Active',
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UpdatedBy INT NULL,
@@ -299,10 +300,11 @@ CREATE PROCEDURE checkBookingExists(
     IN p_BookingID INT
 )
 BEGIN
-    SELECT BookingID, CustomerID, RoomID, CheckInDate, CheckOutDate, Status
+    SELECT BookingID, CustomerID, RoomID, IDCard, CheckInDate, CheckOutDate, Status
     FROM Bookings
     WHERE BookingID = p_BookingID;
 END //
+
 DELIMITER ;
 -- Stored Procedure: Check Room Availability
 DELIMITER //
@@ -336,6 +338,14 @@ BEGIN
     FROM Rooms;
 END //
 DELIMITER ;
+-- Stored Procedure: Get All Bookings
+DELIMITER //
+CREATE PROCEDURE getAllBookings()
+BEGIN
+    SELECT BookingID, CustomerID, RoomID, CheckInDate, CheckOutDate, Status
+    FROM Bookings;
+END //
+DELIMITER ;
 
 -- Stored Procedure: Search Rooms
 DELIMITER //
@@ -348,12 +358,13 @@ CREATE PROCEDURE searchRooms(
 BEGIN
     SELECT RoomID, RoomNumber, RoomType, Price, Status, Amenities
     FROM Rooms
-    WHERE (p_Status IS NULL OR Status = p_Status)
-    AND (p_RoomType IS NULL OR RoomType = p_RoomType)
+    WHERE ((p_Status IS NULL OR p_Status = '') OR Status = p_Status)
+    AND ((p_RoomType IS NULL OR p_RoomType = '') OR RoomType = p_RoomType)
     AND (p_MinPrice IS NULL OR Price >= p_MinPrice)
     AND (p_MaxPrice IS NULL OR Price <= p_MaxPrice);
 END //
 DELIMITER ;
+
 
 -- Stored Procedure: Clean Room
 
@@ -365,20 +376,21 @@ DELIMITER ;
 
 
 -- Stored Procedure Transaction: Add Room
-DELIMITER //
+
 DELIMITER //
 CREATE PROCEDURE addRoomWithTransaction(
     IN p_RoomNumber VARCHAR(10),
     IN p_RoomType ENUM('Single', 'Double', 'Suite'),
     IN p_Price DECIMAL(10, 2),
-    IN p_Amenities JSON,
+    IN p_Amenities VARCHAR(255),
     IN p_UpdatedBy INT,
-    IN p_UpdatedByUsername VARCHAR(50)
+    IN p_UpdatedByUsername VARCHAR(50),
+    OUT p_RoomID INT
 )
 BEGIN
     START TRANSACTION;
 
-    -- Check if room number already exists
+    -- Kiểm tra xem số phòng đã tồn tại chưa
     IF EXISTS (
         SELECT 1 FROM Rooms WHERE RoomNumber = p_RoomNumber
     ) THEN
@@ -386,13 +398,16 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Số phòng đã tồn tại';
     END IF;
 
-    -- Insert new room
+    -- Thêm phòng mới
     INSERT INTO Rooms (RoomNumber, RoomType, Price, Amenities, UpdatedBy, UpdatedByUsername)
     VALUES (p_RoomNumber, p_RoomType, p_Price, p_Amenities, p_UpdatedBy, p_UpdatedByUsername);
 
-    -- Log action
+    -- Lấy RoomID của phòng vừa thêm
+    SET p_RoomID = LAST_INSERT_ID();
+
+    -- Ghi log hành động
     INSERT INTO Logs (UserID, Action, UpdatedByUsername)
-    VALUES (p_UpdatedBy, CONCAT('Thêm phòng số ', p_RoomNumber), p_UpdatedByUsername);
+    VALUES (p_UpdatedBy, CONCAT('Thêm phòng số ', p_RoomNumber, ' với ID ', p_RoomID), p_UpdatedByUsername);
 
     COMMIT;
 END //
@@ -444,7 +459,7 @@ CREATE PROCEDURE updateRoomWithTransaction(
     IN p_RoomNumber VARCHAR(10),
     IN p_RoomType ENUM('Single', 'Double', 'Suite'),
     IN p_Price DECIMAL(10, 2),
-    IN p_Amenities JSON,
+    IN p_Amenities VARCHAR(255), -- Thay đổi từ JSON sang VARCHAR
     IN p_Status ENUM('Available', 'Occupied', 'Under Maintenance', 'Uncleaned'),
     IN p_UpdatedBy INT,
     IN p_UpdatedByUsername VARCHAR(50)
@@ -582,13 +597,6 @@ BEGIN
     SET p_BookingID = LAST_INSERT_ID();
 
     -- Update room status
-    UPDATE Rooms
-    SET Status = 'Occupied',
-        UpdatedBy = p_UpdatedBy,
-        UpdatedByUsername = p_UpdatedByUsername,
-        UpdatedAt = CURRENT_TIMESTAMP
-    WHERE RoomID = p_RoomID;
-
     -- Log action
     INSERT INTO Logs (UserID, Action, UpdatedByUsername)
     VALUES (p_UpdatedBy, CONCAT('Tạo đặt phòng ID ', p_BookingID, ' cho phòng ID ', p_RoomID), p_UpdatedByUsername);
@@ -694,9 +702,10 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Căn cước công dân không khớp với thông tin đặt phòng';
     END IF;
 
-    -- Cập nhật trạng thái booking
+    -- Cập nhật trạng thái booking sang CheckedIn
     UPDATE Bookings
-    SET UpdatedBy = p_UpdatedBy,
+    SET Status = 'CheckedIn',
+        UpdatedBy = p_UpdatedBy,
         UpdatedByUsername = p_UpdatedByUsername,
         UpdatedAt = CURRENT_TIMESTAMP
     WHERE BookingID = p_BookingID;
@@ -719,7 +728,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Check-in thất bại: Không tìm thấy phòng để cập nhật';
     END IF;
 
-    -- Log action với thông tin căn cước
+    -- Log hành động với thông tin căn cước
     INSERT INTO Logs (UserID, Action, UpdatedByUsername)
     VALUES (p_UpdatedBy, CONCAT('Check-in đặt phòng ID ', p_BookingID, ' với xác thực căn cước ', p_IDCard), p_UpdatedByUsername);
 
@@ -745,16 +754,16 @@ BEGIN
 
     START TRANSACTION;
 
-    -- Check if booking exists and is valid
-    IF NOT EXISTS (SELECT 1 FROM Bookings WHERE BookingID = p_BookingID AND Status = 'Active') THEN
+    -- Kiểm tra booking tồn tại và ở trạng thái CheckedIn
+    IF NOT EXISTS (SELECT 1 FROM Bookings WHERE BookingID = p_BookingID AND Status = 'CheckedIn') THEN
         ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đặt phòng không tồn tại hoặc không hợp lệ để check-out';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đặt phòng không tồn tại hoặc không ở trạng thái CheckedIn để check-out';
     END IF;
 
-    -- Get RoomID
+    -- Lấy RoomID
     SELECT RoomID INTO v_RoomID FROM Bookings WHERE BookingID = p_BookingID;
 
-    -- Update booking
+    -- Cập nhật booking
     UPDATE Bookings
     SET Status = 'Completed',
         UpdatedBy = p_UpdatedBy,
@@ -767,7 +776,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Check-out thất bại: Không tìm thấy hoặc không cập nhật được bản ghi';
     END IF;
 
-    -- Update room status
+    -- Cập nhật trạng thái phòng
     UPDATE Rooms
     SET Status = 'Uncleaned',
         UpdatedBy = p_UpdatedBy,
@@ -780,7 +789,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Check-out thất bại: Không tìm thấy phòng để cập nhật';
     END IF;
 
-    -- Log action
+    -- Log hành động
     INSERT INTO Logs (UserID, Action, UpdatedByUsername)
     VALUES (p_UpdatedBy, CONCAT('Check-out đặt phòng ID ', p_BookingID), p_UpdatedByUsername);
 
@@ -808,26 +817,26 @@ BEGIN
 
     START TRANSACTION;
 
-    -- Check if booking exists and is valid
-    IF NOT EXISTS (SELECT 1 FROM Bookings WHERE BookingID = p_BookingID AND Status = 'Active') THEN
+    -- Kiểm tra booking tồn tại và ở trạng thái CheckedIn
+    IF NOT EXISTS (SELECT 1 FROM Bookings WHERE BookingID = p_BookingID AND Status = 'CheckedIn') THEN
         ROLLBACK;
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đặt phòng không tồn tại hoặc không hợp lệ để gia hạn';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Đặt phòng không tồn tại hoặc không ở trạng thái CheckedIn để gia hạn';
     END IF;
 
-    -- Get RoomID and current CheckOutDate
+    -- Lấy RoomID và ngày CheckOut hiện tại
     SELECT RoomID, CheckOutDate INTO v_RoomID, v_CheckOutDate
     FROM Bookings WHERE BookingID = p_BookingID;
 
-    -- Check if new check-out date is valid
+    -- Kiểm tra ngày check-out mới hợp lệ
     IF p_NewCheckOutDate <= v_CheckOutDate THEN
         ROLLBACK;
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ngày check-out mới phải lớn hơn ngày check-out hiện tại';
     END IF;
 
-    -- Check for conflicting bookings
+    -- Kiểm tra xung đột đặt phòng
     IF EXISTS (
         SELECT 1 FROM Bookings
-        WHERE RoomID = v_RoomID AND Status = 'Active'
+        WHERE RoomID = v_RoomID AND Status IN ('Active', 'CheckedIn')
         AND BookingID != p_BookingID
         AND (CheckInDate <= p_NewCheckOutDate AND CheckOutDate > v_CheckOutDate)
     ) THEN
@@ -835,7 +844,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Phòng đã được đặt trong khoảng thời gian gia hạn';
     END IF;
 
-    -- Update booking
+    -- Cập nhật booking
     UPDATE Bookings
     SET CheckOutDate = p_NewCheckOutDate,
         UpdatedBy = p_UpdatedBy,
@@ -848,7 +857,7 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Gia hạn đặt phòng thất bại do không ảnh hưởng dòng nào';
     END IF;
 
-    -- Log action
+    -- Log hành động
     INSERT INTO Logs (UserID, Action, UpdatedByUsername)
     VALUES (p_UpdatedBy, CONCAT('Gia hạn đặt phòng ID ', p_BookingID, ' đến ', p_NewCheckOutDate), p_UpdatedByUsername);
 

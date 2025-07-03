@@ -117,38 +117,38 @@ namespace HotelManagementSystem.Tests.Integration
         }
 
         [Test]
-        public void CheckInCheckOutWorkflow_ShouldUpdateRoomStatus()
-        {
-            // Arrange - Create a booking
-            string idCard = "123456789";
-            string roomId = "1";
-            DateTime checkInDate = DateTime.Now;
-            DateTime checkOutDate = DateTime.Now.AddDays(2);
-            
-            int bookingId = _bookingBLL.CreateBooking(idCard, roomId, checkInDate.ToString("yyyy-MM-dd HH:mm:ss"), checkOutDate.ToString("yyyy-MM-dd HH:mm:ss"), 1, "testadmin");
+public void CheckInCheckOutWorkflow_ShouldUpdateRoomStatus()
+{
+    // Arrange - Create a booking
+    string idCard = "123456789";
+    string roomId = "1";
+    DateTime checkInDate = DateTime.Now;
+    DateTime checkOutDate = DateTime.Now.AddDays(2);
+    
+    int bookingId = _bookingBLL.CreateBooking(idCard, roomId, checkInDate.ToString("yyyy-MM-dd HH:mm:ss"), checkOutDate.ToString("yyyy-MM-dd HH:mm:ss"), 1, "testadmin");
 
-            // Act - Check in
-            _bookingBLL.CheckIn(bookingId.ToString(), idCard, 1, "testadmin");
+    // Act - Check in
+    _bookingBLL.CheckIn(bookingId.ToString(), idCard, 1, "testadmin");
 
+    // Assert - Room status should be 'Occupied'
+    var rooms = ExecuteQuery($"SELECT Status FROM Rooms WHERE RoomID = {roomId}");
+    rooms.Rows[0]["Status"].ToString().Should().Be("Occupied");
 
-            // Assert - Room status should be 'Occupied'
-            var rooms = ExecuteQuery($"SELECT Status FROM Rooms WHERE RoomID = {roomId}");
-            rooms.Rows[0]["Status"].ToString().Should().Be("Occupied");
+    // Act - Check out (đã sửa để thêm IDCard)
+    _bookingBLL.CheckOut(bookingId.ToString(), idCard, 1, "testadmin");
 
-            // Act - Check out
-            _bookingBLL.CheckOut(bookingId.ToString(), 1, "testadmin");
+    // Assert - Room status should be 'Uncleaned'
+    var roomsAfterCheckout = ExecuteQuery($"SELECT Status FROM Rooms WHERE RoomID = {roomId}");
+    roomsAfterCheckout.Rows[0]["Status"].ToString().Should().Be("Uncleaned");
 
-            // Assert - Room status should be 'Uncleaned'
-            var roomsAfterCheckout = ExecuteQuery($"SELECT Status FROM Rooms WHERE RoomID = {roomId}");
-            roomsAfterCheckout.Rows[0]["Status"].ToString().Should().Be("Uncleaned");
+    // Act - Clean room
+    _roomBLL.CleanRoom(roomId, 1, "testadmin");
 
-            // Act - Clean room
-            _roomBLL.CleanRoom(roomId, 1, "testadmin");
+    // Assert - Room status should be 'Available'
+    var roomsAfterCleaning = ExecuteQuery($"SELECT Status FROM Rooms WHERE RoomID = {roomId}");
+    roomsAfterCleaning.Rows[0]["Status"].ToString().Should().Be("Available");
+}
 
-            // Assert - Room status should be 'Available'
-            var roomsAfterCleaning = ExecuteQuery($"SELECT Status FROM Rooms WHERE RoomID = {roomId}");
-            roomsAfterCleaning.Rows[0]["Status"].ToString().Should().Be("Available");
-        }
 
         #endregion
 
@@ -204,7 +204,8 @@ namespace HotelManagementSystem.Tests.Integration
             roomStatus.Rows[0]["Status"].ToString().Should().Be("Occupied");
 
             // Step 3: Check out
-            _bookingBLL.CheckOut(bookingId.ToString(), 1, "testadmin");
+            _bookingBLL.CheckOut(bookingId.ToString(), "123456789", 1, "testadmin");
+
             
             // Verify booking is completed
             var bookingStatus = ExecuteQuery($"SELECT Status FROM Bookings WHERE BookingID = {bookingId}");
