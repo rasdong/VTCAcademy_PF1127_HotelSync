@@ -544,45 +544,23 @@ Console.Write("Để trống nếu không lọc");
         {
             Console.Clear();
             DrawHeader("Hệ Thống Quản Lý Khách Sạn - Kiểm Tra Tình Trạng Phòng");
-            SetupBox(80, 13);
+            SetupBox(80, 10);
 
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(x + 2, y + 2);
-            Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
+            Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") + " (GMT+7)");
             Console.SetCursorPosition(x + 2, y + 3);
             Console.Write(new string('─', width - 4));
 
-            // 🔄 Thay phần nhập ngày bắt đầu bằng lựa chọn hiện tại hoặc nhập
             Console.SetCursorPosition(x + 2, y + 4);
-            Console.Write("Dùng ngày bắt đầu là hiện tại? (Y/N): ");
-            string? useNowInput = ReadInputWithEscape(x + 39, y + 4);
-            if (useNowInput == null) return;
-
-            DateTime startDate;
-            if (useNowInput.Trim().ToUpper() == "Y")
-            {
-                startDate = DateTime.Now;
-            }
-            else
-            {
-                Console.SetCursorPosition(x + 2, y + 5);
-                Console.Write("Nhập ngày bắt đầu (yyyy-MM-dd): ");
-                string? startDateInput = ReadInputWithEscape(x + 33, y + 5);
-                if (startDateInput == null) return;
-                startDate = DateTime.Parse(startDateInput);
-            }
-
-            Console.SetCursorPosition(x + 2, y + 6);
-            Console.Write(new string('─', width - 4));
-
-            Console.SetCursorPosition(x + 2, y + 7);
-            Console.Write("Ngày kết thúc (yyyy-MM-dd): ");
-            string? endDateInput = ReadInputWithEscape(x + 30, y + 7);
+            Console.Write("Ngày kết thúc (dd/MM/yyyy): ");
+            string? endDateInput = ReadInputWithEscape(x + 30, y + 4);
             if (endDateInput == null) return;
 
             try
             {
-                DateTime endDate = DateTime.Parse(endDateInput);
+                DateTime startDate = DateTime.Now;
+                DateTime endDate = DateTime.ParseExact(endDateInput, "dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture);
                 DataTable rooms = _roomBLL.CheckRoomAvailability(startDate, endDate);
 
                 Console.Clear();
@@ -590,13 +568,13 @@ Console.Write("Để trống nếu không lọc");
                 SetupBox(100, 22);
 
                 Console.SetCursorPosition(x + 2, y + 2);
-                Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
+                Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") + " (GMT+7)");
                 Console.SetCursorPosition(x + 2, y + 3);
                 Console.Write(new string('─', width - 4));
 
                 Console.SetCursorPosition(x + 2, y + 4);
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write($"--- PHÒNG TRỐNG TỪ {startDate:yyyy-MM-dd} ĐẾN {endDate:yyyy-MM-dd} ---");
+                Console.Write($"--- PHÒNG TRỐNG TỪ {startDate:dd/MM/yyyy HH:mm} ĐẾN {endDate:dd/MM/yyyy} ---");
                 Console.ResetColor();
                 Console.SetCursorPosition(x + 2, y + 5);
                 Console.Write(new string('─', width - 4));
@@ -657,11 +635,17 @@ Console.Write("Để trống nếu không lọc");
                 Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
                 Console.ReadKey();
             }
+            catch (FormatException)
+            {
+                ShowErrorMessage("Ngày kết thúc không hợp lệ. Vui lòng nhập theo định dạng dd/MM/yyyy.");
+                Console.ReadKey();
+            }
             catch (Exception ex)
             {
                 ShowErrorMessage(ex.Message);
                 Console.ReadKey();
             }
         }
+
     }
 }
