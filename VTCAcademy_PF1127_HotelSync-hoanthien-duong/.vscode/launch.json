@@ -1,0 +1,46 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Hotel Management System",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build Project",
+      "program": "${workspaceFolder}/bin/Debug/net9.0/prj2.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Debug Test Runner",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build Project",
+      "program": "${workspaceFolder}/bin/Debug/net9.0/prj2.dll",
+      "args": ["--test-runner"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Debug Single Test",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build Project",
+      "program": "dotnet",
+      "args": ["test", "--filter", "${input:testFilter}", "--verbosity", "diagnostic"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    }
+  ],
+  "inputs": [
+    {
+      "id": "testFilter",
+      "description": "Enter test filter (e.g., RoomBLLTests, AddRoom_ValidInput_ShouldSucceed)",
+      "default": "RoomBLLTests",
+      "type": "promptString"
+    }
+  ]
+}
