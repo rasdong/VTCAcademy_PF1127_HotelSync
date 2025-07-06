@@ -1,0 +1,7 @@
+﻿=== HOTEL MANAGEMENT SYSTEM LOG ===
+Log started at: 2025-07-07 00:00:09
+=
+
+[2025-07-07 00:00:09] [SYSTEM] User: System | Action: Application started
+[2025-07-07 00:00:13] [AUTH] User: admin1 | Action: Login successful
+[2025-07-07 00:00:15] [ACTIVITY] User: admin1 | Action: Access Invoice Management

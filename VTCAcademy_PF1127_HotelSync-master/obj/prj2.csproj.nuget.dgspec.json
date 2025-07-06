@@ -1,0 +1,93 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync-master_2\\VTCAcademy_PF1127_HotelSync-master_2\\VTCAcademy_PF1127_HotelSync-master\\prj2.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync-master_2\\VTCAcademy_PF1127_HotelSync-master_2\\VTCAcademy_PF1127_HotelSync-master\\prj2.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync-master_2\\VTCAcademy_PF1127_HotelSync-master_2\\VTCAcademy_PF1127_HotelSync-master\\prj2.csproj",
+        "projectName": "prj2",
+        "projectPath": "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync-master_2\\VTCAcademy_PF1127_HotelSync-master_2\\VTCAcademy_PF1127_HotelSync-master\\prj2.csproj",
+        "packagesPath": "C:\\Users\\dong\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\dong\\Desktop\\VTCAcademy_PF1127_HotelSync-master_2\\VTCAcademy_PF1127_HotelSync-master_2\\VTCAcademy_PF1127_HotelSync-master\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\dong\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://www.nuget.org/api/v2": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.200"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "FluentAssertions": {
+              "target": "Package",
+              "version": "[6.12.0, )"
+            },
+            "Microsoft.NET.Test.Sdk": {
+              "target": "Package",
+              "version": "[17.8.0, )"
+            },
+            "Moq": {
+              "target": "Package",
+              "version": "[4.20.69, )"
+            },
+            "MySql.Data": {
+              "target": "Package",
+              "version": "[9.1.0, )"
+            },
+            "NUnit": {
+              "target": "Package",
+              "version": "[4.0.1, )"
+            },
+            "NUnit3TestAdapter": {
+              "target": "Package",
+              "version": "[4.5.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}
