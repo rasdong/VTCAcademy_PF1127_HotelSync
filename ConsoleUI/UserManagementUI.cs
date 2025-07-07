@@ -23,7 +23,16 @@ namespace HotelManagementSystem
 
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.SetCursorPosition(x + 2, y + 2);
-                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
+                if (!string.IsNullOrEmpty(currentUsername))
+                {
+                    Console.Write($" | Người dùng: {currentUsername}");
+                    if (!string.IsNullOrEmpty(currentRole))
+                    {
+                        Console.Write($" ({currentRole})");
+                    }
+                }
+                Console.ResetColor();
                 Console.SetCursorPosition(x + 2, y + 3);
                 Console.Write(new string('─', width - 4));
 
@@ -121,7 +130,16 @@ namespace HotelManagementSystem
 
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(x + 2, y + 2);
-            Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+            Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
+            if (!string.IsNullOrEmpty(currentUsername))
+            {
+                Console.Write($" | Người dùng: {currentUsername}");
+                if (!string.IsNullOrEmpty(currentRole))
+                {
+                    Console.Write($" ({currentRole})");
+                }
+            }
+            Console.ResetColor();
             Console.SetCursorPosition(x + 2, y + 3);
             Console.Write(new string('─', width - 4));
 
@@ -137,6 +155,22 @@ namespace HotelManagementSystem
             Console.Write("Mật khẩu: ");
             Console.SetCursorPosition(x + 12, y + 6);
             string password = ReadPassword();
+
+            // Kiểm tra mật khẩu không được trống
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                ShowErrorMessage("Mật khẩu không được để trống! Nhấn phím bất kỳ để thử lại...");
+                Console.ReadKey();
+                return;
+            }
+
+            // Kiểm tra độ dài tối thiểu của mật khẩu
+            if (password.Length < 6)
+            {
+                ShowErrorMessage("Mật khẩu phải có ít nhất 6 ký tự! Nhấn phím bất kỳ để thử lại...");
+                Console.ReadKey();
+                return;
+            }
 
             Console.SetCursorPosition(x + 2, y + 7);
             Console.Write(new string('─', width - 4));
@@ -410,6 +444,22 @@ namespace HotelManagementSystem
             Console.Write("Mật khẩu mới: ");
             Console.SetCursorPosition(x + 16, y + 6);
             string newPassword = ReadPassword();
+
+            // Kiểm tra mật khẩu không được trống
+            if (string.IsNullOrWhiteSpace(newPassword))
+            {
+                ShowErrorMessage("Mật khẩu không được để trống! Nhấn phím bất kỳ để thử lại...");
+                Console.ReadKey();
+                return;
+            }
+
+            // Kiểm tra độ dài tối thiểu của mật khẩu
+            if (newPassword.Length < 6)
+            {
+                ShowErrorMessage("Mật khẩu phải có ít nhất 6 ký tự! Nhấn phím bất kỳ để thử lại...");
+                Console.ReadKey();
+                return;
+            }
 
             Console.SetCursorPosition(x + 2, y + 7);
             Console.Write(new string('─', width - 4));

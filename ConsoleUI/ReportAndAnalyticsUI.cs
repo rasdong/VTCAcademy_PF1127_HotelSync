@@ -19,11 +19,20 @@ namespace HotelManagementSystem.ConsoleUI
             {
                 Console.Clear();
                 DrawHeader("Hệ Thống Quản Lý Khách Sạn - Báo Cáo & Phân Tích");
-                SetupBox(80, 20);
+                SetupBox(80, 22);
 
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.SetCursorPosition(x + 2, y + 2);
-                Console.Write("Ngày: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " (GMT+7)");
+                Console.Write("Ngày: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " (GMT+7)");
+                if (!string.IsNullOrEmpty(currentUsername))
+                {
+                    Console.Write($" | Người dùng: {currentUsername}");
+                    if (!string.IsNullOrEmpty(currentRole))
+                    {
+                        Console.Write($" ({currentRole})");
+                    }
+                }
+                Console.ResetColor();
                 Console.SetCursorPosition(x + 2, y + 3);
                 Console.Write(new string('─', width - 4));
 
@@ -64,8 +73,10 @@ namespace HotelManagementSystem.ConsoleUI
 
                 Console.SetCursorPosition(x + 2, y + 18);
                 Console.Write("8. Quay lại");
+                Console.SetCursorPosition(x + 2, y + 19);
+                Console.Write(new string('─', width - 4));
 
-                Console.SetCursorPosition(x + 40, y + 18);
+                Console.SetCursorPosition(x + 2, y + 20);
                 Console.Write("0. Thoát");
 
                 Console.SetCursorPosition(x + 2, y + height - 2);
@@ -122,14 +133,16 @@ namespace HotelManagementSystem.ConsoleUI
         private void DailyRevenueReport()
         {
             Console.Clear();
-            DrawHeader("Báo Cáo Doanh Thu Theo Ngày");
-            SetupBox(70, 14);
+            DrawHeader("Hệ Thống Quản Lý Khách Sạn - Báo Cáo Doanh Thu Theo Ngày");
+            SetupBox(80, 18);
 
             ShowDateTimeInfo();
+            Console.SetCursorPosition(x + 2, y + 4);
+            Console.Write(new string('─', width - 4));
 
-            Console.SetCursorPosition(x + 2, y + 5);
+            Console.SetCursorPosition(x + 2, y + 6);
             Console.Write("Ngày báo cáo (dd/MM/yyyy): ");
-            string? reportDate = ReadInputWithEscape(x + 28, y + 5);
+            string? reportDate = ReadInputWithEscape(x + 28, y + 6);
             if (reportDate == null) return;
 
             try
@@ -137,29 +150,63 @@ namespace HotelManagementSystem.ConsoleUI
                 var reportData = _reportBL.GetDailyRevenueReport(reportDate);
                 
                 Console.Clear();
-                Console.WriteLine($"=== BÁO CÁO DOANH THU NGÀY {reportDate} ===");
-                Console.WriteLine();
+                DrawHeader("Hệ Thống Quản Lý Khách Sạn - Kết Quả Báo Cáo Doanh Thu");
+                SetupBox(100, 25);
+
+                ShowDateTimeInfo();
+                Console.SetCursorPosition(x + 2, y + 4);
+                Console.Write(new string('─', width - 4));
+
+                Console.SetCursorPosition(x + 2, y + 5);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write($"--- BÁO CÁO DOANH THU NGÀY {reportDate} ---");
+                Console.ResetColor();
+                Console.SetCursorPosition(x + 2, y + 6);
+                Console.Write(new string('─', width - 4));
+
+                Console.SetCursorPosition(x + 2, y + 4);
+                Console.Write(new string('─', width - 4));
+
+                Console.SetCursorPosition(x + 2, y + 5);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write($"--- BÁO CÁO DOANH THU NGÀY {reportDate} ---");
+                Console.ResetColor();
+                Console.SetCursorPosition(x + 2, y + 6);
+                Console.Write(new string('─', width - 4));
 
                 if (reportData.Rows.Count == 0)
                 {
-                    Console.WriteLine("Không có dữ liệu cho ngày này.");
+                    Console.SetCursorPosition(x + 2, y + 8);
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.Write("Không có dữ liệu cho ngày này.");
+                    Console.ResetColor();
                 }
                 else
                 {
                     var row = reportData.Rows[0];
                     
-                    Console.WriteLine("1. Doanh thu từ đặt phòng:");
-                    Console.WriteLine($"   - Số booking: {row["TotalBookings"]}");
-                    Console.WriteLine($"   - Tổng tiền: {ReportBL.FormatCurrency(Convert.ToDecimal(row["BookingRevenue"]))}");
-                    Console.WriteLine();
-                    Console.WriteLine("2. Doanh thu từ dịch vụ:");
-                    Console.WriteLine($"   - Số dịch vụ sử dụng: {row["ServiceUsages"]}");
-                    Console.WriteLine($"   - Tổng tiền: {ReportBL.FormatCurrency(Convert.ToDecimal(row["ServiceRevenue"]))}");
-                    Console.WriteLine();
-                    Console.WriteLine($"3. Tổng doanh thu: {ReportBL.FormatCurrency(Convert.ToDecimal(row["TotalRevenue"]))}");
+                    Console.SetCursorPosition(x + 2, y + 8);
+                    Console.Write("1. Doanh thu từ đặt phòng:");
+                    Console.SetCursorPosition(x + 4, y + 9);
+                    Console.Write($"- Số booking: {row["TotalBookings"]}");
+                    Console.SetCursorPosition(x + 4, y + 10);
+                    Console.Write($"- Tổng tiền: {ReportBL.FormatCurrency(Convert.ToDecimal(row["BookingRevenue"]))}");
+                    
+                    Console.SetCursorPosition(x + 2, y + 12);
+                    Console.Write("2. Doanh thu từ dịch vụ:");
+                    Console.SetCursorPosition(x + 4, y + 13);
+                    Console.Write($"- Số dịch vụ sử dụng: {row["ServiceUsages"]}");
+                    Console.SetCursorPosition(x + 4, y + 14);
+                    Console.Write($"- Tổng tiền: {ReportBL.FormatCurrency(Convert.ToDecimal(row["ServiceRevenue"]))}");
+                    
+                    Console.SetCursorPosition(x + 2, y + 16);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write($"3. Tổng doanh thu: {ReportBL.FormatCurrency(Convert.ToDecimal(row["TotalRevenue"]))}");
+                    Console.ResetColor();
                 }
 
-                Console.WriteLine("\nNhấn phím bất kỳ để quay lại...");
+                Console.SetCursorPosition(x + 2, y + height - 2);
+                Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
                 Console.ReadKey();
             }
             catch (Exception ex)
@@ -172,14 +219,16 @@ namespace HotelManagementSystem.ConsoleUI
         private void MonthlyRevenueReport()
         {
             Console.Clear();
-            DrawHeader("Báo Cáo Doanh Thu Theo Tháng");
-            SetupBox(70, 14);
+            DrawHeader("Hệ Thống Quản Lý Khách Sạn - Báo Cáo Doanh Thu Theo Tháng");
+            SetupBox(80, 18);
 
             ShowDateTimeInfo();
+            Console.SetCursorPosition(x + 2, y + 4);
+            Console.Write(new string('─', width - 4));
 
-            Console.SetCursorPosition(x + 2, y + 5);
+            Console.SetCursorPosition(x + 2, y + 6);
             Console.Write("Tháng (MM/yyyy): ");
-            string? reportMonth = ReadInputWithEscape(x + 18, y + 5);
+            string? reportMonth = ReadInputWithEscape(x + 18, y + 6);
             if (reportMonth == null) return;
 
             try
@@ -187,33 +236,57 @@ namespace HotelManagementSystem.ConsoleUI
                 var reportData = _reportBL.GetMonthlyRevenueReport(reportMonth);
                 
                 Console.Clear();
-                Console.WriteLine($"=== BÁO CÁO DOANH THU THÁNG {reportMonth} ===");
-                Console.WriteLine();
+                DrawHeader("Hệ Thống Quản Lý Khách Sạn - Kết Quả Báo Cáo Doanh Thu");
+                SetupBox(100, 25);
+
+                ShowDateTimeInfo();
+                Console.SetCursorPosition(x + 2, y + 4);
+                Console.Write(new string('─', width - 4));
+
+                Console.SetCursorPosition(x + 2, y + 5);
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write($"--- BÁO CÁO DOANH THU THÁNG {reportMonth} ---");
+                Console.ResetColor();
+                Console.SetCursorPosition(x + 2, y + 6);
+                Console.Write(new string('─', width - 4));
 
                 if (reportData.Rows.Count == 0)
                 {
-                    Console.WriteLine("Không có dữ liệu cho tháng này.");
+                    Console.SetCursorPosition(x + 2, y + 8);
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.Write("Không có dữ liệu cho tháng này.");
+                    Console.ResetColor();
                 }
                 else
                 {
                     decimal totalRevenue = 0;
                     int totalBookings = 0;
 
-                    Console.WriteLine("Doanh thu theo tuần:");
+                    Console.SetCursorPosition(x + 2, y + 8);
+                    Console.Write("Doanh thu theo tuần:");
+                    
+                    int currentLine = 9;
                     foreach (DataRow row in reportData.Rows)
                     {
-                        Console.WriteLine($"   - Tuần {row["WeekNumber"]}: {ReportBL.FormatCurrency(Convert.ToDecimal(row["TotalRevenue"]))} ({row["TotalBookings"]} booking)");
+                        Console.SetCursorPosition(x + 4, y + currentLine);
+                        Console.Write($"- Tuần {row["WeekNumber"]}: {ReportBL.FormatCurrency(Convert.ToDecimal(row["TotalRevenue"]))} ({row["TotalBookings"]} booking)");
                         totalRevenue += Convert.ToDecimal(row["TotalRevenue"]);
                         totalBookings += Convert.ToInt32(row["TotalBookings"]);
+                        currentLine++;
                     }
                     
-                    Console.WriteLine();
-                    Console.WriteLine($"Tổng quan tháng:");
-                    Console.WriteLine($"   - Tổng số booking: {totalBookings}");
-                    Console.WriteLine($"   - Tổng doanh thu: {ReportBL.FormatCurrency(totalRevenue)}");
+                    Console.SetCursorPosition(x + 2, y + currentLine + 1);
+                    Console.Write("Tổng quan tháng:");
+                    Console.SetCursorPosition(x + 4, y + currentLine + 2);
+                    Console.Write($"- Tổng số booking: {totalBookings}");
+                    Console.SetCursorPosition(x + 4, y + currentLine + 3);
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.Write($"- Tổng doanh thu: {ReportBL.FormatCurrency(totalRevenue)}");
+                    Console.ResetColor();
                 }
 
-                Console.WriteLine("\nNhấn phím bất kỳ để quay lại...");
+                Console.SetCursorPosition(x + 2, y + height - 2);
+                Console.WriteLine("Nhấn phím bất kỳ để quay lại...");
                 Console.ReadKey();
             }
             catch (Exception ex)
@@ -228,20 +301,33 @@ namespace HotelManagementSystem.ConsoleUI
         private void VIPCustomerReport()
         {
             Console.Clear();
-            DrawHeader("Báo Cáo Khách Hàng VIP");
+            DrawHeader("Hệ Thống Quản Lý Khách Sạn - Báo Cáo Khách Hàng VIP");
+            SetupBox(100, 25);
+            
+            ShowDateTimeInfo();
+            Console.SetCursorPosition(x + 2, y + 4);
+            Console.Write(new string('─', width - 4));
+
+            Console.SetCursorPosition(x + 2, y + 5);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write("--- BÁO CÁO KHÁCH HÀNG VIP ---");
+            Console.ResetColor();
+            Console.SetCursorPosition(x + 2, y + 6);
+            Console.Write(new string('─', width - 4));
             
             try
             {
                 var reportData = _reportBL.GetVIPCustomerReport();
                 
-                Console.WriteLine("=== BÁO CÁO KHÁCH HÀNG VIP ===");
-                Console.WriteLine();
-                Console.WriteLine("Tiêu chí VIP: >= 5 lần đặt phòng");
-                Console.WriteLine();
+                Console.SetCursorPosition(x + 2, y + 8);
+                Console.Write("Tiêu chí VIP: >= 5 lần đặt phòng");
                 
                 if (reportData.Rows.Count == 0)
                 {
-                    Console.WriteLine("Không có khách hàng VIP nào.");
+                    Console.SetCursorPosition(x + 2, y + 10);
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.Write("Không có khách hàng VIP nào.");
+                    Console.ResetColor();
                 }
                 else
                 {
@@ -326,26 +412,6 @@ namespace HotelManagementSystem.ConsoleUI
                 Console.ReadKey();
             }
         }
-
-
-
-        private void ShowDateTimeInfo()
-        {
-            Console.SetCursorPosition(x + 2, y + 2);
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write($"Ngày: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
-            if (!string.IsNullOrEmpty(currentUsername))
-            {
-                Console.Write($" | Người dùng: {currentUsername}");
-                if (!string.IsNullOrEmpty(currentRole))
-                {
-                    Console.Write($" ({currentRole})");
-                }
-            }
-            Console.ResetColor();
-        }
-
-
 
         // Thêm báo cáo tỷ lệ lấp đầy phòng
         private void OccupancyRateReport()
@@ -504,6 +570,22 @@ namespace HotelManagementSystem.ConsoleUI
             
             Console.WriteLine("\nNhấn phím bất kỳ để quay lại...");
             Console.ReadKey();
+        }
+
+        private void ShowDateTimeInfo()
+        {
+            Console.SetCursorPosition(x + 2, y + 2);
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write($"Ngày: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
+            if (!string.IsNullOrEmpty(currentUsername))
+            {
+                Console.Write($" | Người dùng: {currentUsername}");
+                if (!string.IsNullOrEmpty(currentRole))
+                {
+                    Console.Write($" ({currentRole})");
+                }
+            }
+            Console.ResetColor();
         }
     }
 }
